@@ -1,0 +1,318 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  CLASS_ADMIN
+  TEACHER
+  ADMIN
+  SUPER_USER
+}
+
+enum TreasuryStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ChannelType {
+  TEXT
+  ANNOUNCEMENT
+}
+
+enum SubmissionStatus {
+  PENDING
+  GRADED
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum RewardStatus {
+  PENDING
+  CLAIMED
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  username       String    @unique
+  password_hash  String
+  role           Role      @default(STUDENT)
+  name           String
+  student_number String?
+  total_points   Int       @default(0)
+  last_active      DateTime?
+  character_data   Json?
+
+  // Relations
+  assignments    Assignment[]
+  submissions    Submission[]
+  transactions         Treasury[]  @relation("TreasuryStudent")
+  created_transactions Treasury[]  @relation("TreasuryCreator")
+  approved_transactions Treasury[] @relation("TreasuryApprover")
+  quiz_attempts  QuizAttempt[]
+  quizzes_created  Quiz[]       @relation("QuizCreator")
+  channels_created Channel[]   @relation("ChannelCreator")
+  messages         Message[]   @relation("MessageAuthor")
+  deleted_messages Message[]   @relation("MessageDeleter")
+  reward_logs    RewardLog[]
+  events         Event[]
+  daily_homework DailyHomework[]
+  subjects       Subject[]       @relation("SubjectTeacher")
+  vocab_words    VocabWord[]     @relation("VocabCreator")
+  challenged     VocabBattle[]   @relation("BattleChallenger")
+  opponent_in    VocabBattle[]   @relation("BattleOpponent")
+  won_battles    VocabBattle[]   @relation("BattleWinner")
+  battle_stats   BattleStats?
+}
+
+model Subject {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  teacher_id  Int?
+  created_at  DateTime     @default(now())
+
+  teacher     User?        @relation("SubjectTeacher", fields: [teacher_id], references: [id])
+  assignments Assignment[]
+}
+
+model Assignment {
+  id           Int       @id @default(autoincrement())
+  title        String
+  description  String?
+  due_date     DateTime
+  max_score    Int
+  bonus_points Int       @default(0)
+  created_by   Int
+  subject_id   Int?
+
+  // Relations
+  teacher     User      @relation(fields: [created_by], references: [id])
+  subject     Subject?  @relation(fields: [subject_id], references: [id])
+  submissions Submission[]
+}
+
+model Submission {
+  id            Int              @id @default(autoincrement())
+  assignment_id Int
+  student_id    Int
+  file_url      String?
+  submitted_at  DateTime         @default(now())
+  status        SubmissionStatus @default(PENDING)
+  score_given   Int?
+  
+  // Relations
+  assignment    Assignment       @relation(fields: [assignment_id], references: [id])
+  student       User             @relation(fields: [student_id], references: [id])
+}
+
+model Treasury {
+  id          Int             @id @default(autoincrement())
+  student_id  Int?
+  amount      Float
+  type        TransactionType
+  description String?
+  created_at  DateTime        @default(now())
+  tx_status   TreasuryStatus  @default(APPROVED)
+  created_by  Int?
+  approved_by Int?
+
+  // Relations
+  student     User?           @relation("TreasuryStudent",   fields: [student_id], references: [id])
+  creator     User?           @relation("TreasuryCreator",   fields: [created_by],  references: [id])
+  approver    User?           @relation("TreasuryApprover",  fields: [approved_by], references: [id])
+}
+
+model Quiz {
+  id           Int           @id @default(autoincrement())
+  title        String
+  description  String?
+  time_limit   Int           @default(600)  // seconds, 0 = no limit
+  max_attempts Int           @default(1)    // 0 = unlimited
+  points_per_q Int           @default(10)   // points per correct answer
+  created_by   Int
+  created_at   DateTime      @default(now())
+  is_active    Boolean       @default(true)
+
+  // Relations
+  creator      User          @relation("QuizCreator", fields: [created_by], references: [id])
+  questions    Question[]
+  attempts     QuizAttempt[]
+}
+
+model Question {
+  id             Int    @id @default(autoincrement())
+  quiz_id        Int
+  question_text  String
+  choices        Json
+  correct_answer String
+  
+  // Relations
+  quiz           Quiz   @relation(fields: [quiz_id], references: [id])
+}
+
+model QuizAttempt {
+  id           Int      @id @default(autoincrement())
+  student_id   Int
+  quiz_id      Int
+  score        Int
+  total_q      Int      @default(0)
+  correct      Int      @default(0)
+  time_taken   Int      @default(0)  // seconds
+  answers      Json?    // { question_id: chosen_answer }
+  completed_at DateTime @default(now())
+
+  // Relations
+  student      User     @relation(fields: [student_id], references: [id])
+  quiz         Quiz     @relation(fields: [quiz_id], references: [id])
+}
+
+model Reward {
+  id              Int         @id @default(autoincrement())
+  title           String
+  image_url       String?
+  points_required Int
+  stock           Int         @default(0)
+  
+  // Relations
+  reward_logs     RewardLog[]
+}
+
+model RewardLog {
+  id          Int          @id @default(autoincrement())
+  student_id  Int
+  reward_id   Int
+  status      RewardStatus @default(PENDING)
+  redeemed_at DateTime     @default(now())
+
+  // Relations
+  student     User         @relation(fields: [student_id], references: [id])
+  reward      Reward       @relation(fields: [reward_id], references: [id])
+}
+
+model DailyHomework {
+  id         Int      @id @default(autoincrement())
+  student_id Int
+  subject    String
+  detail     String?
+  date       DateTime @db.Date
+  done       Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  // Relations
+  student    User     @relation(fields: [student_id], references: [id])
+}
+
+model Event {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  start_date  DateTime
+  end_date    DateTime?
+  color       String    @default("#7c3aed")
+  event_type  EventType @default(EVENT)
+  created_by  Int?
+  created_at  DateTime  @default(now())
+  is_all_day  Boolean   @default(false)
+
+  // Relations
+  creator     User?     @relation(fields: [created_by], references: [id])
+}
+
+model Channel {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  description String?
+  type        ChannelType @default(TEXT)
+  created_by  Int
+  created_at  DateTime    @default(now())
+  is_active   Boolean     @default(true)
+  position    Int         @default(0)
+
+  creator     User        @relation("ChannelCreator", fields: [created_by], references: [id])
+  messages    Message[]
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  channel_id Int
+  user_id    Int
+  content    String
+  created_at DateTime @default(now())
+  edited_at  DateTime?
+  deleted    Boolean  @default(false)
+  deleted_by Int?
+
+  channel    Channel  @relation(fields: [channel_id], references: [id])
+  user       User     @relation("MessageAuthor",  fields: [user_id],    references: [id])
+  deleter    User?    @relation("MessageDeleter", fields: [deleted_by], references: [id])
+}
+
+// ══════════════════════════════════════════
+// VOCAB BATTLE GAME
+// ══════════════════════════════════════════
+
+enum EventType {
+  EVENT
+  HOLIDAY
+  SCHOOL
+}
+
+enum BattleStatus {
+  PENDING
+  ACTIVE
+  FINISHED
+  DECLINED
+}
+
+model VocabWord {
+  id          Int      @id @default(autoincrement())
+  word        String
+  translation String
+  hint        String?
+  category    String   @default("ทั่วไป")
+  created_by  Int
+  created_at  DateTime @default(now())
+
+  creator     User     @relation("VocabCreator", fields: [created_by], references: [id])
+}
+
+model VocabBattle {
+  id            Int          @id @default(autoincrement())
+  challenger_id Int
+  opponent_id   Int
+  status        BattleStatus @default(PENDING)
+  winner_id     Int?
+  challenger_hp Int          @default(100)
+  opponent_hp   Int          @default(100)
+  challenger_wins Int        @default(0)
+  opponent_wins   Int        @default(0)
+  rounds_played   Int        @default(0)
+  max_rounds      Int        @default(15)
+  category        String?
+  created_at    DateTime     @default(now())
+  finished_at   DateTime?
+
+  challenger    User  @relation("BattleChallenger", fields: [challenger_id], references: [id])
+  opponent      User  @relation("BattleOpponent",   fields: [opponent_id],   references: [id])
+  winner        User? @relation("BattleWinner",     fields: [winner_id],     references: [id])
+}
+
+model BattleStats {
+  id          Int  @id @default(autoincrement())
+  user_id     Int  @unique
+  wins        Int  @default(0)
+  losses      Int  @default(0)
+  total_combo Int  @default(0)
+  best_combo  Int  @default(0)
+
+  user        User @relation(fields: [user_id], references: [id])
+}
