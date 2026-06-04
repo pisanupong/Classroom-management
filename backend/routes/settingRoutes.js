@@ -4,6 +4,6 @@ const { getSettings, updateSettings } = require('../controllers/settingControlle
 const { protect, restrictTo } = require('../middleware/authMiddleware');
 
 router.get('/',  getSettings);                                   // public
-router.put('/',  protect, restrictTo('SUPER_USER'), updateSettings); // SUPER_USER only
+router.put('/',  protect, restrictTo('ADMIN'), updateSettings); // ADMIN + SUPER_USER
 
 module.exports = router;
