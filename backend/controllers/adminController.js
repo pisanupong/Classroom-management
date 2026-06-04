@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const prisma = require('../config/db');
+const xlsx  = require('xlsx');
 const { ROLE_LEVEL } = require('../middleware/authMiddleware');
 
 const VALID_ROLES = ['STUDENT', 'CLASS_ADMIN', 'TEACHER', 'ADMIN', 'SUPER_USER'];
@@ -124,4 +125,79 @@ const deleteUser = async (req, res) => {
   }
 };
 
-module.exports = { getUsers, updateUser, deleteUser };
+// POST /api/admin/users  — create single user
+const createUser = async (req, res) => {
+  try {
+    const { username, name, password, role = 'STUDENT', student_number } = req.body;
+    const actorLevel = ROLE_LEVEL[req.user.role];
+
+    if (!username || !name || !password)
+      return res.status(400).json({ message: 'กรุณากรอก username, ชื่อ และรหัสผ่าน' });
+    if (role && ROLE_LEVEL[role] >= actorLevel)
+      return res.status(403).json({ message: 'ไม่สามารถสร้าง role ที่สูงกว่าสิทธิ์ตัวเอง' });
+
+    const exists = await prisma.user.findUnique({ where: { username } });
+    if (exists) return res.status(400).json({ message: `username "${username}" ถูกใช้แล้ว` });
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(password, salt);
+
+    const user = await prisma.user.create({
+      data: { username, name, password_hash, role: VALID_ROLES.includes(role) ? role : 'STUDENT', student_number: student_number || null },
+      select: { id: true, username: true, name: true, role: true, student_number: true, total_points: true },
+    });
+    res.status(201).json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+// POST /api/admin/users/import  — import from Excel
+const importUsers = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'ไม่พบไฟล์ Excel' });
+    const actorLevel = ROLE_LEVEL[req.user.role];
+
+    const wb  = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const ws  = wb.Sheets[wb.SheetNames[0]];
+    const rows = xlsx.utils.sheet_to_json(ws, { defval: '' });
+
+    const results = { created: [], skipped: [], errors: [] };
+
+    for (const row of rows) {
+      // รองรับหัวคอลัมน์ทั้งภาษาไทยและอังกฤษ
+      const username       = String(row['username'] || row['Username'] || row['ชื่อผู้ใช้'] || '').trim();
+      const name           = String(row['name']     || row['Name']     || row['ชื่อ-นามสกุล'] || row['ชื่อ'] || '').trim();
+      const password       = String(row['password'] || row['Password'] || row['รหัสผ่าน'] || '').trim();
+      const role           = String(row['role']     || row['Role']     || row['สิทธิ์'] || 'STUDENT').trim().toUpperCase();
+      const student_number = String(row['student_number'] || row['รหัสนักเรียน'] || '').trim();
+
+      if (!username || !name) { results.errors.push({ row: username || '?', reason: 'ไม่มี username หรือ ชื่อ' }); continue; }
+      if (!VALID_ROLES.includes(role)) { results.errors.push({ row: username, reason: `role "${role}" ไม่ถูกต้อง` }); continue; }
+      if (ROLE_LEVEL[role] >= actorLevel) { results.errors.push({ row: username, reason: 'role สูงเกินสิทธิ์ของคุณ' }); continue; }
+
+      const exists = await prisma.user.findUnique({ where: { username } });
+      if (exists) { results.skipped.push(username); continue; }
+
+      const finalPass = password || username; // default password = username
+      const salt = await bcrypt.genSalt(10);
+      const password_hash = await bcrypt.hash(finalPass, salt);
+
+      await prisma.user.create({
+        data: { username, name, password_hash, role, student_number: student_number || null },
+      });
+      results.created.push(username);
+    }
+
+    res.json({
+      message: `นำเข้าสำเร็จ ${results.created.length} คน, ข้าม ${results.skipped.length} คน, ผิดพลาด ${results.errors.length} รายการ`,
+      ...results,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+module.exports = { getUsers, createUser, importUsers, updateUser, deleteUser };

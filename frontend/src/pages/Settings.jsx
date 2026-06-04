@@ -38,6 +38,221 @@ const GRADIENT_PRESETS = [
   { label:'Charcoal',      value:'linear-gradient(135deg,#374151 0%,#111827 100%)' },
 ];
 
+/* ══════════════════ CREATE USER MODAL ══════════════════ */
+const CreateUserModal = ({ actorLevel, onClose, onCreated }) => {
+  const assignableRoles = Object.keys(ROLE_META).filter(r => ROLE_LEVEL[r] < actorLevel);
+  const [form, setForm]   = useState({ username:'', name:'', password:'', role:'STUDENT', student_number:'' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+
+  const handleSubmit = async e => {
+    e.preventDefault(); setSaving(true); setError('');
+    try {
+      const res = await api.post('/admin/users', form);
+      onCreated(res.data);
+      onClose();
+    } catch (err) { setError(err.response?.data?.message || 'เกิดข้อผิดพลาด'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background:'rgba(0,0,0,0.8)', backdropFilter:'blur(4px)' }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-md rounded-3xl p-6 border text-white"
+        style={{ background:'rgba(15,28,60,0.98)', borderColor:'rgba(255,255,255,0.1)' }}>
+        <h3 className="font-bold text-lg mb-4">➕ สร้างผู้ใช้ใหม่</h3>
+        {error && <div className="mb-4 p-3 rounded-xl text-sm text-red-300 bg-red-500/10 border border-red-500/30">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color:'rgba(255,255,255,0.5)' }}>Username *</label>
+              <input value={form.username} onChange={e=>setForm({...form,username:e.target.value})} required
+                className="w-full px-3 py-2.5 rounded-xl text-white text-sm focus:outline-none"
+                style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)' }}/>
+            </div>
+            <div>
+              <label className="block text-xs mb-1.5" style={{ color:'rgba(255,255,255,0.5)' }}>รหัสนักเรียน</label>
+              <input value={form.student_number} onChange={e=>setForm({...form,student_number:e.target.value})}
+                placeholder="ถ้ามี"
+                className="w-full px-3 py-2.5 rounded-xl text-white text-sm focus:outline-none placeholder-white/20"
+                style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)' }}/>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color:'rgba(255,255,255,0.5)' }}>ชื่อ-นามสกุล *</label>
+            <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required
+              className="w-full px-3 py-2.5 rounded-xl text-white text-sm focus:outline-none"
+              style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)' }}/>
+          </div>
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color:'rgba(255,255,255,0.5)' }}>รหัสผ่าน *</label>
+            <input type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} required
+              className="w-full px-3 py-2.5 rounded-xl text-white text-sm focus:outline-none"
+              style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)' }}/>
+          </div>
+          <div>
+            <label className="block text-xs mb-2" style={{ color:'rgba(255,255,255,0.5)' }}>Role</label>
+            <div className="grid grid-cols-2 gap-2">
+              {assignableRoles.map(r => {
+                const m = ROLE_META[r]; const active = form.role === r;
+                return (
+                  <button key={r} type="button" onClick={() => setForm({...form, role:r})}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border transition-all"
+                    style={{ background:active?m.bg:'rgba(255,255,255,0.05)', color:active?m.color:'rgba(255,255,255,0.4)', borderColor:active?m.border:'transparent' }}>
+                    {m.icon} {m.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-sm border border-white/10 text-white/50 hover:text-white">ยกเลิก</button>
+            <button type="submit" disabled={saving}
+              className="flex-1 py-2.5 rounded-xl font-medium text-white text-sm disabled:opacity-50"
+              style={{ background:'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+              {saving ? 'กำลังสร้าง...' : '➕ สร้างผู้ใช้'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/* ══════════════════ IMPORT EXCEL MODAL ══════════════════ */
+const ImportModal = ({ onClose, onImported }) => {
+  const fileRef             = React.useRef(null);
+  const [file, setFile]     = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError]   = useState('');
+
+  const handleFile = f => {
+    if (!f) return;
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (!['xlsx','xls','csv'].includes(ext)) { setError('รองรับเฉพาะ .xlsx, .xls, .csv'); return; }
+    setFile(f); setError(''); setResult(null);
+  };
+
+  const handleImport = async () => {
+    if (!file) return;
+    setImporting(true); setError('');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.post('/admin/users/import', form, { headers:{ 'Content-Type':'multipart/form-data' } });
+      setResult(res.data);
+      onImported();
+    } catch (err) { setError(err.response?.data?.message || 'นำเข้าไม่สำเร็จ'); }
+    finally { setImporting(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background:'rgba(0,0,0,0.8)', backdropFilter:'blur(4px)' }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-lg rounded-3xl p-6 border text-white"
+        style={{ background:'rgba(15,28,60,0.98)', borderColor:'rgba(255,255,255,0.1)' }}>
+        <h3 className="font-bold text-lg mb-1">📥 Import จาก Excel</h3>
+        <p className="text-xs mb-4" style={{ color:'rgba(255,255,255,0.4)' }}>
+          คอลัมน์: <code className="bg-white/10 px-1 rounded">username</code> <code className="bg-white/10 px-1 rounded">name</code> <code className="bg-white/10 px-1 rounded">password</code> <code className="bg-white/10 px-1 rounded">role</code> <code className="bg-white/10 px-1 rounded">student_number</code>
+          <br/>ถ้าไม่ใส่ password จะใช้ username เป็น password เริ่มต้น
+        </p>
+
+        {error && <div className="mb-4 p-3 rounded-xl text-sm text-red-300 bg-red-500/10 border border-red-500/30">{error}</div>}
+
+        {!result ? (
+          <>
+            {/* Drop zone */}
+            <div
+              onDragOver={e=>{ e.preventDefault(); setDragOver(true); }}
+              onDragLeave={()=>setDragOver(false)}
+              onDrop={e=>{ e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}
+              onClick={()=>fileRef.current?.click()}
+              className="rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-all mb-4"
+              style={{ height:120, border:`2px dashed ${dragOver?'#a78bfa':'rgba(255,255,255,0.15)'}`, background:dragOver?'rgba(124,58,237,0.15)':'rgba(255,255,255,0.04)' }}>
+              {file ? (
+                <>
+                  <span className="text-3xl">📊</span>
+                  <p className="text-sm font-medium text-green-400">{file.name}</p>
+                  <p className="text-xs" style={{ color:'rgba(255,255,255,0.35)' }}>{(file.size/1024).toFixed(1)} KB — คลิกเพื่อเปลี่ยน</p>
+                </>
+              ) : (
+                <>
+                  <span className="text-3xl">📂</span>
+                  <p className="text-sm font-medium text-white">คลิกหรือลากไฟล์ Excel มาวาง</p>
+                  <p className="text-xs" style={{ color:'rgba(255,255,255,0.35)' }}>.xlsx, .xls, .csv — ไม่เกิน 5 MB</p>
+                </>
+              )}
+            </div>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e=>handleFile(e.target.files[0])}/>
+
+            {/* Template download hint */}
+            <p className="text-xs mb-4 text-center" style={{ color:'rgba(255,255,255,0.3)' }}>
+              💡 ดาวน์โหลด{' '}
+              <button onClick={downloadTemplate} className="underline" style={{ color:'#a78bfa' }}>Template Excel</button>
+            </p>
+
+            <div className="flex gap-3">
+              <button onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl text-sm border border-white/10 text-white/50 hover:text-white">ยกเลิก</button>
+              <button onClick={handleImport} disabled={!file || importing}
+                className="flex-1 py-2.5 rounded-xl font-medium text-white text-sm disabled:opacity-40"
+                style={{ background:'linear-gradient(135deg,#059669,#0d9488)' }}>
+                {importing ? 'กำลังนำเข้า...' : '📥 นำเข้า'}
+              </button>
+            </div>
+          </>
+        ) : (
+          /* Result summary */
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              {[['✅ สร้างแล้ว', result.created.length, '#34d399'],
+                ['⏭️ ซ้ำ ข้าม', result.skipped.length, '#fbbf24'],
+                ['❌ ผิดพลาด',  result.errors.length,  '#f87171']].map(([label, count, color]) => (
+                <div key={label} className="rounded-xl p-3 text-center" style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                  <p className="text-2xl font-bold" style={{ color }}>{count}</p>
+                  <p className="text-xs mt-0.5" style={{ color:'rgba(255,255,255,0.5)' }}>{label}</p>
+                </div>
+              ))}
+            </div>
+            {result.errors.length > 0 && (
+              <div className="rounded-xl p-3 text-xs space-y-1 max-h-32 overflow-y-auto" style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)' }}>
+                {result.errors.map((e,i) => (
+                  <p key={i} className="text-red-300">• {e.row}: {e.reason}</p>
+                ))}
+              </div>
+            )}
+            <button onClick={onClose}
+              className="w-full py-2.5 rounded-xl font-medium text-white text-sm"
+              style={{ background:'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+              ✓ ปิด
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* download blank template */
+const downloadTemplate = () => {
+  const header = [['username','name','password','role','student_number']];
+  const example = [
+    ['student001','นักเรียน ทดสอบ','password123','STUDENT','12345'],
+    ['teacher001','ครู ทดสอบ','password123','TEACHER',''],
+  ];
+  const csv = [...header, ...example].map(r=>r.join(',')).join('\n');
+  const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'users_template.csv'; a.click();
+  URL.revokeObjectURL(url);
+};
+
 /* ══════════════════ TAB 1: USER MANAGEMENT ══════════════════ */
 const TabUsers = ({ actorRole }) => {
   const navigate = useNavigate();
@@ -49,11 +264,18 @@ const TabUsers = ({ actorRole }) => {
   const [editTarget, setEditTarget] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting]   = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [msg, setMsg]             = useState({ text:'', type:'ok' });
 
   const flash = (text, type='ok') => {
     setMsg({ text, type });
     setTimeout(() => setMsg({ text:'', type:'ok' }), 3000);
+  };
+
+  const handleCreated = (newUser) => {
+    setUsers(prev => [newUser, ...prev]);
+    flash('สร้างผู้ใช้สำเร็จ ✅');
   };
 
   const fetchUsers = useCallback(async () => {
@@ -106,6 +328,20 @@ const TabUsers = ({ actorRole }) => {
           {msg.text}
         </div>
       )}
+
+      {/* Action buttons */}
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={()=>setShowCreate(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-[1.02]"
+          style={{ background:'linear-gradient(135deg,#7c3aed,#db2777)', color:'#fff' }}>
+          ➕ สร้างผู้ใช้
+        </button>
+        <button onClick={()=>setShowImport(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-[1.02]"
+          style={{ background:'linear-gradient(135deg,#059669,#0d9488)', color:'#fff' }}>
+          📥 Import Excel
+        </button>
+      </div>
 
       {/* Search + Filter */}
       <div className="flex gap-3 flex-wrap">
@@ -179,6 +415,18 @@ const TabUsers = ({ actorRole }) => {
             );
           })}
       </div>
+
+      {/* Create Modal */}
+      {showCreate && (
+        <CreateUserModal actorLevel={actorLevel}
+          onClose={()=>setShowCreate(false)} onCreated={handleCreated}/>
+      )}
+
+      {/* Import Modal */}
+      {showImport && (
+        <ImportModal
+          onClose={()=>setShowImport(false)} onImported={fetchUsers}/>
+      )}
 
       {/* Edit Modal */}
       {editTarget && (
