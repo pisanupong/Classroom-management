@@ -6,8 +6,8 @@ const { getSubjects, createSubject, updateSubject, deleteSubject, getTeachers } 
 router.use(protect);
 router.get('/',           getSubjects);
 router.get('/teachers',   getTeachers);
-router.post('/',          restrictTo('TEACHER'), createSubject);
-router.put('/:id',        restrictTo('TEACHER'), updateSubject);
-router.delete('/:id',     restrictTo('TEACHER'), deleteSubject);
+router.post('/',          restrictTo('ADMIN'), createSubject);
+router.put('/:id',        restrictTo('ADMIN'), updateSubject);
+router.delete('/:id',     restrictTo('ADMIN'), deleteSubject);
 
 module.exports = router;

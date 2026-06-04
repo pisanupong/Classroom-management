@@ -820,9 +820,247 @@ const TabLoginBg = ({ settings, onSaved }) => {
   );
 };
 
+/* ══════════════════ TAB 4: SUBJECTS & TEACHERS ══════════════════ */
+const TabSubjects = () => {
+  const [subjects, setSubjects]   = useState([]);
+  const [teachers, setTeachers]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [showForm, setShowForm]   = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting]   = useState(false);
+  const [msg, setMsg]             = useState({ text:'', type:'ok' });
+
+  const flash = (text, type='ok') => { setMsg({ text, type }); setTimeout(()=>setMsg({ text:'', type:'ok' }), 3000); };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [s, t] = await Promise.all([api.get('/subjects'), api.get('/subjects/teachers')]);
+      setSubjects(s.data);
+      setTeachers(t.data);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleDelete = async (id) => {
+    setDeleting(true);
+    try {
+      await api.delete(`/subjects/${id}`);
+      setSubjects(prev => prev.filter(s => s.id !== id));
+      setDeleteConfirm(null);
+      flash('ลบวิชาสำเร็จ');
+    } catch (err) { flash(err.response?.data?.message || 'เกิดข้อผิดพลาด', 'err'); }
+    finally { setDeleting(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      {msg.text && (
+        <div className={`p-3 rounded-xl text-sm border ${msg.type==='err'?'bg-red-500/10 border-red-500/30 text-red-300':'bg-green-500/10 border-green-500/30 text-green-300'}`}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-white font-semibold">วิชาทั้งหมด</p>
+          <p className="text-xs mt-0.5" style={{ color:'rgba(255,255,255,0.4)' }}>{subjects.length} วิชา</p>
+        </div>
+        <button onClick={() => { setEditTarget(null); setShowForm(true); }}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-[1.02]"
+          style={{ background:'linear-gradient(135deg,#7c3aed,#db2777)', color:'#fff' }}>
+          ➕ เพิ่มวิชา
+        </button>
+      </div>
+
+      {/* Subject list */}
+      <div className="rounded-2xl overflow-hidden" style={{ border:'1px solid rgba(255,255,255,0.08)', background:'rgba(255,255,255,0.03)' }}>
+        <div className="grid px-4 py-2.5 text-xs font-medium uppercase tracking-wide"
+          style={{ gridTemplateColumns:'1fr 1fr auto', borderBottom:'1px solid rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.3)' }}>
+          <div>วิชา</div>
+          <div>อาจารย์ประจำวิชา</div>
+          <div className="w-20 text-right">จัดการ</div>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-10 text-white/30 text-sm">กำลังโหลด...</div>
+        ) : subjects.length === 0 ? (
+          <div className="text-center py-10 text-white/30 text-sm">ยังไม่มีวิชา — กด ➕ เพิ่มวิชา</div>
+        ) : subjects.map((s, idx) => (
+          <div key={s.id} className="grid px-4 py-3.5 items-center hover:bg-white/5 transition-colors"
+            style={{ gridTemplateColumns:'1fr 1fr auto', borderTop: idx===0?'none':'1px solid rgba(255,255,255,0.04)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                style={{ background:'rgba(124,58,237,0.2)', border:'1px solid rgba(124,58,237,0.3)' }}>
+                📚
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">{s.name}</p>
+                <p className="text-xs" style={{ color:'rgba(255,255,255,0.3)' }}>ID: {s.id}</p>
+              </div>
+            </div>
+            <div>
+              {s.teacher ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{ background:'rgba(124,58,237,0.2)', color:'#a78bfa' }}>
+                    {s.teacher.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm text-white">{s.teacher.name}</p>
+                    <p className="text-xs" style={{ color:'rgba(255,255,255,0.35)' }}>{ROLE_META[s.teacher.role]?.label || s.teacher.role}</p>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-xs italic" style={{ color:'rgba(255,255,255,0.25)' }}>— ยังไม่กำหนดอาจารย์</span>
+              )}
+            </div>
+            <div className="flex gap-1.5 justify-end">
+              <button onClick={() => { setEditTarget(s); setShowForm(true); }}
+                className="px-2.5 py-1.5 rounded-lg text-xs border transition-all hover:border-white/30"
+                style={{ color:'rgba(255,255,255,0.5)', borderColor:'rgba(255,255,255,0.1)' }}>✏️</button>
+              <button onClick={() => setDeleteConfirm(s)}
+                className="px-2.5 py-1.5 rounded-lg text-xs border transition-all"
+                style={{ color:'rgba(239,68,68,0.5)', borderColor:'rgba(239,68,68,0.15)' }}>🗑️</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Form Modal */}
+      {showForm && (
+        <SubjectFormModal
+          subject={editTarget}
+          teachers={teachers}
+          onClose={() => { setShowForm(false); setEditTarget(null); }}
+          onSaved={(updated, isNew) => {
+            if (isNew) setSubjects(prev => [...prev, updated]);
+            else setSubjects(prev => prev.map(s => s.id === updated.id ? updated : s));
+            flash(isNew ? 'เพิ่มวิชาสำเร็จ ✅' : 'อัปเดตสำเร็จ ✅');
+          }}
+        />
+      )}
+
+      {/* Delete confirm */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background:'rgba(0,0,0,0.8)', backdropFilter:'blur(4px)' }}>
+          <div className="w-full max-w-sm rounded-3xl p-6 border text-white"
+            style={{ background:'rgba(15,28,60,0.98)', borderColor:'rgba(255,255,255,0.1)' }}>
+            <p className="text-4xl text-center mb-3">⚠️</p>
+            <h3 className="text-center font-bold text-lg mb-1">ยืนยันการลบ</h3>
+            <p className="text-center text-sm mb-5" style={{ color:'rgba(255,255,255,0.5)' }}>
+              ลบวิชา <span className="text-white font-medium">{deleteConfirm.name}</span>?
+            </p>
+            <div className="flex gap-3">
+              <button onClick={()=>setDeleteConfirm(null)} disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl text-sm border border-white/10 text-white/50 hover:text-white">ยกเลิก</button>
+              <button onClick={()=>handleDelete(deleteConfirm.id)} disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-50"
+                style={{ background:'linear-gradient(135deg,#ef4444,#b91c1c)' }}>
+                {deleting ? 'กำลังลบ...' : '🗑️ ลบเลย'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SubjectFormModal = ({ subject, teachers, onClose, onSaved }) => {
+  const isEdit = !!subject;
+  const [form, setForm]     = useState({ name: subject?.name || '', teacher_id: subject?.teacher?.id || '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+
+  const handleSubmit = async e => {
+    e.preventDefault(); setSaving(true); setError('');
+    try {
+      const payload = { name: form.name, teacher_id: form.teacher_id || null };
+      if (isEdit) {
+        const res = await api.put(`/subjects/${subject.id}`, payload);
+        onSaved(res.data, false);
+      } else {
+        const res = await api.post('/subjects', payload);
+        onSaved(res.data, true);
+      }
+      onClose();
+    } catch (err) { setError(err.response?.data?.message || 'เกิดข้อผิดพลาด'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background:'rgba(0,0,0,0.8)', backdropFilter:'blur(4px)' }}
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-md rounded-3xl p-6 border text-white"
+        style={{ background:'rgba(15,28,60,0.98)', borderColor:'rgba(255,255,255,0.1)' }}>
+        <h3 className="font-bold text-lg mb-4">{isEdit ? '✏️ แก้ไขวิชา' : '➕ เพิ่มวิชาใหม่'}</h3>
+        {error && <div className="mb-4 p-3 rounded-xl text-sm text-red-300 bg-red-500/10 border border-red-500/30">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color:'rgba(255,255,255,0.5)' }}>ชื่อวิชา *</label>
+            <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required
+              placeholder="เช่น คณิตศาสตร์, ภาษาอังกฤษ"
+              className="w-full px-4 py-2.5 rounded-xl text-white text-sm focus:outline-none placeholder-white/20"
+              style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)' }}/>
+          </div>
+          <div>
+            <label className="block text-xs mb-2" style={{ color:'rgba(255,255,255,0.5)' }}>อาจารย์ประจำวิชา</label>
+            <div className="rounded-xl overflow-hidden" style={{ border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.05)', maxHeight:200, overflowY:'auto' }}>
+              {/* ไม่กำหนด */}
+              <button type="button" onClick={()=>setForm({...form,teacher_id:''})}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-white/5 border-b"
+                style={{ borderColor:'rgba(255,255,255,0.06)', background: form.teacher_id===''?'rgba(124,58,237,0.15)':'transparent', color: form.teacher_id===''?'#a78bfa':'rgba(255,255,255,0.4)' }}>
+                <span className="text-lg">—</span>
+                <span>ยังไม่กำหนด</span>
+                {form.teacher_id==='' && <span className="ml-auto text-xs">✓</span>}
+              </button>
+              {teachers.map(t => {
+                const m = ROLE_META[t.role];
+                const active = String(form.teacher_id) === String(t.id);
+                return (
+                  <button key={t.id} type="button" onClick={()=>setForm({...form,teacher_id:t.id})}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-white/5 border-b"
+                    style={{ borderColor:'rgba(255,255,255,0.06)', background: active?'rgba(124,58,237,0.15)':'transparent' }}>
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      style={{ background: m?.bg, color: m?.color }}>
+                      {t.name.charAt(0)}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-white font-medium">{t.name}</p>
+                      <p className="text-xs" style={{ color:'rgba(255,255,255,0.35)' }}>{m?.label}</p>
+                    </div>
+                    {active && <span className="ml-auto text-purple-400 text-xs">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-sm border border-white/10 text-white/50 hover:text-white">ยกเลิก</button>
+            <button type="submit" disabled={saving}
+              className="flex-1 py-2.5 rounded-xl font-medium text-white text-sm disabled:opacity-50"
+              style={{ background:'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+              {saving ? 'กำลังบันทึก...' : '💾 บันทึก'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 /* ══════════════════ MAIN SETTINGS PAGE ══════════════════ */
 const TABS = [
   { id:'users',       icon:'👥', label:'จัดการผู้ใช้'     },
+  { id:'subjects',    icon:'📚', label:'วิชา & อาจารย์'   },
   { id:'permissions', icon:'🔐', label:'สิทธิ์เมนู'       },
   { id:'appearance',  icon:'🎨', label:'หน้า Login'       },
 ];
@@ -884,7 +1122,8 @@ const Settings = () => {
 
         {/* Tab content */}
         <div className="rounded-2xl p-5 border" style={{ background:'rgba(255,255,255,0.03)', borderColor:'rgba(255,255,255,0.08)' }}>
-          {activeTab==='users'       && <TabUsers actorRole={user?.role}/>}
+          {activeTab==='users'       && <TabUsers    actorRole={user?.role}/>}
+          {activeTab==='subjects'    && <TabSubjects/>}
           {activeTab==='permissions' && <TabPermissions settings={settings} onSaved={reloadSettings}/>}
           {activeTab==='appearance'  && <TabLoginBg    settings={settings} onSaved={reloadSettings}/>}
         </div>
