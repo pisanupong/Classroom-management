@@ -405,28 +405,57 @@ const TabPermissions = ({ settings, onSaved }) => {
 /* ══════════════════ TAB 3: LOGIN BACKGROUND ══════════════════ */
 const TabLoginBg = ({ settings, onSaved }) => {
   const current = settings.loginBackground || { type:'gradient', value:GRADIENT_PRESETS[0].value };
-  const [type, setType]       = useState(current.type || 'gradient');
+  const [type, setType]         = useState(current.type || 'gradient');
   const [gradient, setGradient] = useState(
     current.type==='gradient' ? current.value : GRADIENT_PRESETS[0].value
   );
-  const [imageUrl, setImageUrl] = useState(current.type==='image' ? current.value : '');
-  const [saving, setSaving]   = useState(false);
-  const [msg, setMsg]         = useState('');
+  const [imageUrl, setImageUrl]     = useState(current.type==='image' ? current.value : '');
+  const [dragOver, setDragOver]     = useState(false);
+  const [uploading, setUploading]   = useState(false);
+  const [saving,    setSaving]      = useState(false);
+  const [msg, setMsg]               = useState('');
+  const fileInputRef                = React.useRef(null);
+
+  const flash = (text) => { setMsg(text); setTimeout(()=>setMsg(''), 4000); };
 
   const preview = type==='gradient' ? gradient : (imageUrl || GRADIENT_PRESETS[0].value);
   const previewStyle = type==='gradient'
     ? { background: preview }
     : { backgroundImage:`url(${preview})`, backgroundSize:'cover', backgroundPosition:'center' };
 
+  /* upload file → return URL */
+  const uploadFile = async (file) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { flash('❌ ไฟล์ใหญ่เกิน 10 MB'); return; }
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const res = await api.post('/upload/background', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setImageUrl(res.data.url);
+      setType('image');
+      flash('✅ อัปโหลดสำเร็จ');
+    } catch (err) {
+      flash(`❌ ${err.response?.data?.message || 'อัปโหลดไม่สำเร็จ'}`);
+    } finally { setUploading(false); }
+  };
+
+  const handleFileChange = (e) => uploadFile(e.target.files[0]);
+  const handleDrop = (e) => {
+    e.preventDefault(); setDragOver(false);
+    uploadFile(e.dataTransfer.files[0]);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const value = type==='gradient' ? gradient : imageUrl;
       await api.put('/settings', { loginBackground: { type, value } });
-      setMsg('บันทึกสำเร็จ ✅');
+      flash('✅ บันทึกสำเร็จ');
       onSaved();
-      setTimeout(() => setMsg(''), 3000);
-    } catch { setMsg('เกิดข้อผิดพลาด ❌'); }
+    } catch { flash('❌ เกิดข้อผิดพลาด'); }
     finally { setSaving(false); }
   };
 
@@ -450,7 +479,7 @@ const TabLoginBg = ({ settings, onSaved }) => {
 
       {/* Type toggle */}
       <div className="flex rounded-xl overflow-hidden p-1 gap-1" style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)' }}>
-        {[['gradient','🎨 Gradient สี'],['image','🖼️ รูปภาพ URL']].map(([t,label])=>(
+        {[['gradient','🎨 Gradient สี'],['image','🖼️ รูปภาพ']].map(([t,label])=>(
           <button key={t} onClick={()=>setType(t)}
             className="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
             style={{ background:type===t?'rgba(124,58,237,0.4)':'transparent', color:type===t?'#c4b5fd':'rgba(255,255,255,0.4)' }}>
@@ -460,6 +489,7 @@ const TabLoginBg = ({ settings, onSaved }) => {
       </div>
 
       {type==='gradient' ? (
+        /* ── GRADIENT TAB ── */
         <div className="space-y-3">
           <p className="text-sm font-medium text-white">เลือก Preset</p>
           <div className="grid grid-cols-4 gap-2">
@@ -485,19 +515,55 @@ const TabLoginBg = ({ settings, onSaved }) => {
           </div>
         </div>
       ) : (
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">URL รูปภาพ</label>
-          <input value={imageUrl} onChange={e=>setImageUrl(e.target.value)}
-            placeholder="https://example.com/background.jpg"
-            className="w-full px-4 py-2.5 rounded-xl text-white text-sm focus:outline-none placeholder-white/20"
-            style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)' }}/>
-          <p className="text-xs mt-2" style={{ color:'rgba(255,255,255,0.35)' }}>
-            แนะนำขนาด 1920×1080px ขึ้นไป เพื่อความคมชัด
+        /* ── IMAGE UPLOAD TAB ── */
+        <div className="space-y-3">
+          {/* Drop zone */}
+          <div
+            onDragOver={e=>{ e.preventDefault(); setDragOver(true); }}
+            onDragLeave={()=>setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={()=>fileInputRef.current?.click()}
+            className="rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer transition-all select-none"
+            style={{
+              height: 140,
+              border: `2px dashed ${dragOver ? '#a78bfa' : 'rgba(255,255,255,0.15)'}`,
+              background: dragOver ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.04)',
+            }}>
+            {uploading ? (
+              <>
+                <div className="w-8 h-8 rounded-full border-2 border-purple-400 border-t-transparent animate-spin"/>
+                <p className="text-sm" style={{ color:'rgba(255,255,255,0.5)' }}>กำลังอัปโหลด...</p>
+              </>
+            ) : (
+              <>
+                <span className="text-4xl">📁</span>
+                <p className="text-sm font-medium text-white">คลิกหรือลากไฟล์รูปมาวางที่นี่</p>
+                <p className="text-xs" style={{ color:'rgba(255,255,255,0.35)' }}>PNG, JPG, WEBP — ไม่เกิน 10 MB</p>
+              </>
+            )}
+          </div>
+
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange}/>
+
+          {/* Current URL display */}
+          {imageUrl && (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+              style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)' }}>
+              <span className="text-green-400 text-sm">✓</span>
+              <p className="text-xs truncate flex-1" style={{ color:'rgba(255,255,255,0.5)' }}>{imageUrl}</p>
+              <button onClick={()=>setImageUrl('')}
+                className="text-xs px-2 py-1 rounded-lg transition-colors hover:bg-red-500/20 flex-shrink-0"
+                style={{ color:'rgba(239,68,68,0.6)' }}>✕ ลบ</button>
+            </div>
+          )}
+
+          <p className="text-xs" style={{ color:'rgba(255,255,255,0.3)' }}>
+            💡 แนะนำขนาด 1920×1080px ขึ้นไป เพื่อความคมชัด
           </p>
         </div>
       )}
 
-      <button onClick={handleSave} disabled={saving}
+      <button onClick={handleSave} disabled={saving || uploading}
         className="px-6 py-3 rounded-xl font-semibold text-white text-sm disabled:opacity-50 transition-all hover:scale-[1.02]"
         style={{ background:'linear-gradient(135deg,#7c3aed,#db2777)' }}>
         {saving ? 'กำลังบันทึก...' : '💾 บันทึก Background'}

@@ -55,6 +55,11 @@ app.use('/api/rewards',        require('./routes/rewardRoutes'));
 app.use('/api/vocab',          require('./routes/vocabRoutes'));
 app.use('/api/subjects',       require('./routes/subjectRoutes'));
 app.use('/api/settings',      require('./routes/settingRoutes'));
+app.use('/api/upload',        require('./routes/uploadRoutes'));
+
+// Serve uploaded files as static assets
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 app.get('/', (req, res) => res.send('Classroom Management API is running...'));
 app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
