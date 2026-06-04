@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import api from '../services/api';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -118,6 +119,7 @@ const MiniCalendar = ({ assignments, events }) => {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 const Dashboard = () => {
   const { user, logout } = useContext(AuthContext);
+  const { settings }     = useSettings();
   const navigate = useNavigate();
   const isTeacher = ROLE_LEVEL[user?.role] >= ROLE_LEVEL['TEACHER'];
 
@@ -139,19 +141,24 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [fetchDashboard]);
 
+  const mp = settings.menuPermissions || {};
   const NAV_ITEMS = [
-    { path: '/assignments', icon: '📚', label: 'การบ้าน', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-    { path: '/calendar', icon: '📅', label: 'ปฏิทิน', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-    { path: '/daily-homework', icon: '📖', label: 'จดการบ้าน', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-    { path: '/admin/users', icon: '👥', label: 'จัดการ User', roles: ['ADMIN','SUPER_USER'] },
-    { path: '/quiz', icon: '🎯', label: 'แบบฝึกหัด', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-    { path: '/character', icon: '🎨', label: 'ตัวละคร', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-    { path: '/chat', icon: '💬', label: 'สนทนา', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-    { path: '/treasury', icon: '💰', label: 'เงินห้อง', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-    { path: '/rewards', icon: '🎁', label: 'ของรางวัล', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-    { path: '/vocab-battle', icon: '⚔️', label: 'Vocab Battle', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-    { path: '/leaderboard', icon: '🕹️', label: 'Ranking', roles: ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'] },
-  ].filter(n => n.roles.includes(user?.role));
+    { path: '/assignments',   icon: '📚', label: 'การบ้าน',     permKey: 'assignments'    },
+    { path: '/calendar',      icon: '📅', label: 'ปฏิทิน',      permKey: 'calendar'       },
+    { path: '/daily-homework',icon: '📖', label: 'จดการบ้าน',   permKey: 'daily_homework' },
+    { path: '/settings',      icon: '⚙️', label: 'Settings',    roles:   ['ADMIN','SUPER_USER'] },
+    { path: '/quiz',          icon: '🎯', label: 'แบบฝึกหัด',   permKey: 'quiz'           },
+    { path: '/character',     icon: '🎨', label: 'ตัวละคร',     permKey: 'character'      },
+    { path: '/chat',          icon: '💬', label: 'สนทนา',        permKey: 'chat'           },
+    { path: '/treasury',      icon: '💰', label: 'เงินห้อง',    permKey: 'treasury'       },
+    { path: '/rewards',       icon: '🎁', label: 'ของรางวัล',   permKey: 'rewards'        },
+    { path: '/vocab-battle',  icon: '⚔️', label: 'Vocab Battle', permKey: 'vocab_battle'  },
+    { path: '/leaderboard',   icon: '🕹️', label: 'Ranking',     permKey: 'leaderboard'   },
+  ].filter(n => {
+    if (n.roles) return n.roles.includes(user?.role);
+    const allowed = mp[n.permKey] ?? ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'];
+    return allowed.includes(user?.role);
+  });
 
   const rm = ROLE_META[user?.role] || ROLE_META.STUDENT;
 

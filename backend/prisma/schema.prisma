@@ -74,6 +74,13 @@ model User {
   battle_stats   BattleStats?
 }
 
+model Setting {
+  id         Int      @id @default(autoincrement())
+  key        String   @unique
+  value      String
+  updated_at DateTime @updatedAt
+}
+
 model Subject {
   id          Int          @id @default(autoincrement())
   name        String       @unique

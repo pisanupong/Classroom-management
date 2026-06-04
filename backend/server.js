@@ -54,6 +54,7 @@ app.use('/api/treasury',       require('./routes/treasuryRoutes'));
 app.use('/api/rewards',        require('./routes/rewardRoutes'));
 app.use('/api/vocab',          require('./routes/vocabRoutes'));
 app.use('/api/subjects',       require('./routes/subjectRoutes'));
+app.use('/api/settings',      require('./routes/settingRoutes'));
 
 app.get('/', (req, res) => res.send('Classroom Management API is running...'));
 app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));

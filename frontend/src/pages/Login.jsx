@@ -1,13 +1,20 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 
 const Login = () => {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useContext(AuthContext);
+  const { settings } = useSettings();
   const navigate = useNavigate();
+
+  const bg = settings.loginBackground || { type:'gradient', value:'linear-gradient(135deg,#667eea 0%,#764ba2 100%)' };
+  const bgStyle = bg.type === 'image'
+    ? { backgroundImage:`url(${bg.value})`, backgroundSize:'cover', backgroundPosition:'center' }
+    : { background: bg.value };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -29,7 +36,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={bgStyle}>
       {/* Decorative circles */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-400 opacity-20 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
