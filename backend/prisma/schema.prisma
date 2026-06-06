@@ -206,13 +206,16 @@ model RewardLog {
 }
 
 model DailyHomework {
-  id         Int      @id @default(autoincrement())
-  student_id Int
-  subject    String
-  detail     String?
-  date       DateTime @db.Date
-  done       Boolean  @default(false)
-  created_at DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  student_id      Int
+  subject         String
+  detail          String?
+  homework_type   String   @default("อื่นๆ")   // หนังสือ | สมุด | รายงาน | อื่นๆ
+  due_date        DateTime? @db.Date            // วันกำหนดส่ง (null = ไม่กำหนด)
+  submit_location String   @default("ในห้องเรียน") // classroom | ในห้องเรียน | โต๊ะครู
+  date            DateTime @db.Date
+  done            Boolean  @default(false)
+  created_at      DateTime @default(now())
 
   // Relations
   student    User     @relation(fields: [student_id], references: [id])

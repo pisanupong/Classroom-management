@@ -32,19 +32,24 @@ const getHomework = async (req, res) => {
 // POST /api/daily-homework
 const createHomework = async (req, res) => {
   try {
-    const { subject, detail, date } = req.body;
+    const { subject, detail, date, homework_type, due_date, submit_location } = req.body;
     if (!subject || !date) {
       return res.status(400).json({ message: 'กรุณากรอกวิชาและวันที่' });
     }
 
+    const VALID_TYPES     = ['หนังสือ', 'สมุด', 'รายงาน', 'อื่นๆ'];
+    const VALID_LOCATIONS = ['classroom', 'ในห้องเรียน', 'โต๊ะครู'];
     const { start } = dayRange(date);
 
     const item = await prisma.dailyHomework.create({
       data: {
-        student_id: req.user.id,
+        student_id:      req.user.id,
         subject,
-        detail: detail || null,
-        date: start,
+        detail:          detail || null,
+        homework_type:   VALID_TYPES.includes(homework_type) ? homework_type : 'อื่นๆ',
+        due_date:        due_date ? new Date(due_date) : null,
+        submit_location: VALID_LOCATIONS.includes(submit_location) ? submit_location : 'ในห้องเรียน',
+        date:            start,
       },
     });
 
