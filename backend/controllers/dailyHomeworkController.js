@@ -188,4 +188,91 @@ const getAllStudentsHomework = async (req, res) => {
   }
 };
 
-module.exports = { getHomework, createHomework, updateHomework, toggleDone, deleteHomework, getSummary, getAllStudentsHomework };
+// GET /api/daily-homework/:id/detail — รายละเอียด + submissions + reads
+const getHomeworkDetail = async (req, res) => {
+  try {
+    const item = await prisma.dailyHomework.findUnique({
+      where: { id: parseInt(req.params.id) },
+      include: {
+        student: { select: { id:true, name:true, student_number:true, role:true } },
+        submissions: {
+          include: { student: { select: { id:true, name:true, student_number:true } } },
+          orderBy: { submitted_at: 'asc' },
+        },
+        reads: {
+          include: { student: { select: { id:true, name:true, student_number:true } } },
+          orderBy: { viewed_at: 'asc' },
+        },
+      },
+    });
+    if (!item) return res.status(404).json({ message: 'ไม่พบรายการ' });
+
+    // mark as read (upsert)
+    await prisma.homeworkRead.upsert({
+      where:  { homework_id_student_id: { homework_id: item.id, student_id: req.user.id } },
+      create: { homework_id: item.id, student_id: req.user.id },
+      update: { viewed_at: new Date() },
+    });
+
+    res.json(item);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+// POST /api/daily-homework/:id/submit — นักเรียนส่งการบ้าน
+const submitHomework = async (req, res) => {
+  try {
+    const { submitted_at, note } = req.body;
+    const homework_id = parseInt(req.params.id);
+
+    if (!submitted_at) return res.status(400).json({ message: 'กรุณาระบุวันเวลาที่ส่ง' });
+
+    const item = await prisma.dailyHomework.findUnique({ where: { id: homework_id } });
+    if (!item) return res.status(404).json({ message: 'ไม่พบรายการ' });
+    if (item.student_id !== req.user.id) return res.status(403).json({ message: 'ไม่ใช่การบ้านของคุณ' });
+
+    // ตรวจว่าส่งช้าหรือไม่
+    const isLate = item.due_date && new Date(submitted_at) > new Date(item.due_date);
+
+    const submission = await prisma.homeworkSubmission.upsert({
+      where:  { homework_id_student_id: { homework_id, student_id: req.user.id } },
+      create: { homework_id, student_id: req.user.id, submitted_at: new Date(submitted_at), note: note||null, status: isLate ? 'LATE' : 'SUBMITTED' },
+      update: { submitted_at: new Date(submitted_at), note: note||null, status: isLate ? 'LATE' : 'SUBMITTED', updated_at: new Date() },
+      include: { student: { select: { id:true, name:true } } },
+    });
+
+    // auto-toggle done
+    await prisma.dailyHomework.update({ where: { id: homework_id }, data: { done: true } });
+
+    res.json(submission);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+// PATCH /api/daily-homework/:id/submission-status — ครู/ประธาน เปลี่ยนสถานะ
+const updateSubmissionStatus = async (req, res) => {
+  try {
+    const { status, student_id } = req.body;
+    const VALID = ['SUBMITTED','APPROVED','LATE','REJECTED'];
+    if (!VALID.includes(status)) return res.status(400).json({ message: 'status ไม่ถูกต้อง' });
+
+    const homework_id = parseInt(req.params.id);
+    const sid = parseInt(student_id) || req.user.id;
+
+    const submission = await prisma.homeworkSubmission.update({
+      where:  { homework_id_student_id: { homework_id, student_id: sid } },
+      data:   { status },
+      include: { student: { select: { id:true, name:true } } },
+    });
+    res.json(submission);
+  } catch (error) {
+    if (error.code === 'P2025') return res.status(404).json({ message: 'ไม่พบการส่งงาน' });
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
+module.exports = { getHomework, createHomework, updateHomework, toggleDone, deleteHomework, getSummary, getAllStudentsHomework, getHomeworkDetail, submitHomework, updateSubmissionStatus };

@@ -65,8 +65,10 @@ model User {
   deleted_messages Message[]   @relation("MessageDeleter")
   reward_logs    RewardLog[]
   events         Event[]
-  daily_homework DailyHomework[]
-  subjects       Subject[]       @relation("SubjectTeacher")
+  daily_homework        DailyHomework[]
+  homework_submissions  HomeworkSubmission[]
+  homework_reads        HomeworkRead[]
+  subjects              Subject[]       @relation("SubjectTeacher")
   vocab_words    VocabWord[]     @relation("VocabCreator")
   challenged     VocabBattle[]   @relation("BattleChallenger")
   opponent_in    VocabBattle[]   @relation("BattleOpponent")
@@ -210,15 +212,52 @@ model DailyHomework {
   student_id      Int
   subject         String
   detail          String?
-  homework_type   String   @default("อื่นๆ")   // หนังสือ | สมุด | รายงาน | อื่นๆ
-  due_date        DateTime? @db.Date            // วันกำหนดส่ง (null = ไม่กำหนด)
-  submit_location String   @default("ในห้องเรียน") // classroom | ในห้องเรียน | โต๊ะครู
+  homework_type   String   @default("อื่นๆ")
+  due_date        DateTime? @db.Date
+  submit_location String   @default("ในห้องเรียน")
   date            DateTime @db.Date
   done            Boolean  @default(false)
   created_at      DateTime @default(now())
 
   // Relations
-  student    User     @relation(fields: [student_id], references: [id])
+  student     User                  @relation(fields: [student_id], references: [id])
+  submissions HomeworkSubmission[]
+  reads       HomeworkRead[]
+}
+
+model HomeworkSubmission {
+  id           Int          @id @default(autoincrement())
+  homework_id  Int
+  student_id   Int
+  submitted_at DateTime     // วันเวลาที่นักเรียนระบุว่าส่ง
+  status       SubmitStatus @default(SUBMITTED)
+  note         String?
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+
+  homework     DailyHomework @relation(fields: [homework_id], references: [id])
+  student      User          @relation(fields: [student_id], references: [id])
+
+  @@unique([homework_id, student_id])
+}
+
+model HomeworkRead {
+  id          Int           @id @default(autoincrement())
+  homework_id Int
+  student_id  Int
+  viewed_at   DateTime      @default(now())
+
+  homework    DailyHomework @relation(fields: [homework_id], references: [id])
+  student     User          @relation(fields: [student_id], references: [id])
+
+  @@unique([homework_id, student_id])
+}
+
+enum SubmitStatus {
+  SUBMITTED
+  APPROVED
+  LATE
+  REJECTED
 }
 
 model Event {

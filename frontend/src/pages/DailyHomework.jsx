@@ -1,7 +1,16 @@
-import React, { useContext, useEffect, useState, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
+
+const ROLE_LEVEL = { STUDENT:0, CLASS_ADMIN:1, TEACHER:2, ADMIN:3, SUPER_USER:4 };
+
+const STATUS_META = {
+  SUBMITTED: { label:'ส่งแล้ว',   color:'#60a5fa', bg:'rgba(96,165,250,0.15)',   border:'rgba(96,165,250,0.3)',   icon:'📬' },
+  APPROVED:  { label:'ตรวจแล้ว',  color:'#34d399', bg:'rgba(52,211,153,0.15)',   border:'rgba(52,211,153,0.3)',   icon:'✅' },
+  LATE:      { label:'ส่งช้า',    color:'#fbbf24', bg:'rgba(251,191,36,0.15)',   border:'rgba(251,191,36,0.3)',   icon:'⏰' },
+  REJECTED:  { label:'ส่งคืน',   color:'#f87171', bg:'rgba(248,113,113,0.15)',  border:'rgba(248,113,113,0.3)',  icon:'↩️' },
+};
 
 const DAYS_TH   = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
 const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -34,6 +43,231 @@ const LOCATIONS = [
   { value:'โต๊ะครู',     icon:'🪑', label:'โต๊ะครู',              color:'#f472b6', bg:'rgba(244,114,182,0.15)', border:'rgba(244,114,182,0.3)' },
 ];
 const getLocation = (v) => LOCATIONS.find(l => l.value === v) || LOCATIONS[1];
+
+/* ══ Submit Homework Modal ══ */
+const SubmitModal = ({ item, onClose, onSubmitted }) => {
+  const now = new Date();
+  const localNow = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const [submittedAt, setSubmittedAt] = useState(localNow);
+  const [note, setNote]       = useState('');
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState('');
+
+  const handleSubmit = async e => {
+    e.preventDefault(); setSaving(true); setError('');
+    try {
+      const res = await api.post(`/daily-homework/${item.id}/submit`, { submitted_at: submittedAt, note });
+      onSubmitted(res.data);
+      onClose();
+    } catch (err) { setError(err.response?.data?.message || 'เกิดข้อผิดพลาด'); }
+    finally { setSaving(false); }
+  };
+
+  const isLate = item.due_date && new Date(submittedAt) > new Date(item.due_date);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background:'rgba(0,0,0,0.8)', backdropFilter:'blur(6px)' }}
+      onClick={e => e.target===e.currentTarget && onClose()}>
+      <div className="w-full max-w-md rounded-3xl p-6 border text-white"
+        style={{ background:'rgba(15,20,50,0.98)', borderColor:'rgba(255,255,255,0.1)' }}>
+        <h3 className="font-bold text-lg mb-1">📬 ส่งการบ้าน</h3>
+        <p className="text-sm mb-4" style={{ color:'rgba(255,255,255,0.5)' }}>
+          วิชา: <span className="text-white font-medium">{item.subject}</span>
+        </p>
+        {error && <div className="mb-3 p-3 rounded-xl text-sm text-red-300 bg-red-500/10 border border-red-500/30">{error}</div>}
+
+        {item.due_date && (
+          <div className="mb-4 p-3 rounded-xl text-sm" style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)' }}>
+            📅 กำหนดส่ง: <span className="font-medium text-white">{new Date(item.due_date).toLocaleDateString('th-TH',{ day:'numeric', month:'long', year:'numeric' })}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color:'rgba(255,255,255,0.5)' }}>วันที่และเวลาที่ส่ง *</label>
+            <input type="datetime-local" required value={submittedAt}
+              onChange={e=>setSubmittedAt(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl text-white text-sm focus:outline-none"
+              style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)', colorScheme:'dark' }}/>
+            {isLate && (
+              <p className="text-xs mt-1.5 text-yellow-400">⏰ ส่งช้ากว่ากำหนด — จะถูกบันทึกเป็น "ส่งช้า"</p>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color:'rgba(255,255,255,0.5)' }}>หมายเหตุ (ไม่บังคับ)</label>
+            <input type="text" value={note} onChange={e=>setNote(e.target.value)}
+              placeholder="เช่น ส่งผ่าน LINE ครูแล้ว..."
+              className="w-full px-4 py-2.5 rounded-xl text-white text-sm focus:outline-none placeholder-white/20"
+              style={{ background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)' }}/>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-sm border border-white/10 text-white/50 hover:text-white">ยกเลิก</button>
+            <button type="submit" disabled={saving}
+              className="flex-1 py-2.5 rounded-xl font-medium text-white text-sm disabled:opacity-50"
+              style={{ background:'linear-gradient(135deg,#059669,#0d9488)' }}>
+              {saving ? 'กำลังบันทึก...' : '📬 ยืนยันการส่ง'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+/* ══ Detail Modal ══ */
+const DetailModal = ({ item, canManage, onClose, onStatusChanged }) => {
+  const [detail, setDetail]   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
+
+  useEffect(() => {
+    api.get(`/daily-homework/${item.id}/detail`)
+      .then(r => setDetail(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [item.id]);
+
+  const handleStatusChange = async (studentId, status) => {
+    setUpdatingId(studentId);
+    try {
+      await api.patch(`/daily-homework/${item.id}/submission-status`, { status, student_id: studentId });
+      setDetail(prev => ({
+        ...prev,
+        submissions: prev.submissions.map(s => s.student_id===studentId ? { ...s, status } : s),
+      }));
+      onStatusChanged?.();
+    } catch { /* ignore */ }
+    finally { setUpdatingId(null); }
+  };
+
+  const hwType = detail ? HW_TYPES.find(t=>t.value===detail.homework_type)||HW_TYPES[3] : null;
+  const loc    = detail ? LOCATIONS.find(l=>l.value===detail.submit_location)||LOCATIONS[1] : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background:'rgba(0,0,0,0.85)', backdropFilter:'blur(6px)' }}
+      onClick={e => e.target===e.currentTarget && onClose()}>
+      <div className="w-full max-w-2xl rounded-3xl border text-white overflow-hidden"
+        style={{ background:'rgba(15,20,50,0.98)', borderColor:'rgba(255,255,255,0.1)', maxHeight:'90vh', display:'flex', flexDirection:'column' }}>
+
+        {/* Header */}
+        <div className="p-6 border-b" style={{ borderColor:'rgba(255,255,255,0.08)' }}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-xl">{loading ? '...' : detail?.subject}</h3>
+              {detail?.detail && <p className="text-sm mt-1" style={{ color:'rgba(255,255,255,0.5)' }}>{detail.detail}</p>}
+              {!loading && detail && (
+                <div className="flex gap-2 flex-wrap mt-2">
+                  {hwType && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background:hwType.bg, color:hwType.color, border:`1px solid ${hwType.border}` }}>
+                      {hwType.icon} {hwType.value}
+                    </span>
+                  )}
+                  {loc && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background:loc.bg, color:loc.color, border:`1px solid ${loc.border}` }}>
+                      {loc.icon} {loc.label}
+                    </span>
+                  )}
+                  {detail.due_date && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.5)', border:'1px solid rgba(255,255,255,0.1)' }}>
+                      📅 กำหนดส่ง {new Date(detail.due_date).toLocaleDateString('th-TH',{ day:'numeric', month:'short' })}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+            <button onClick={onClose} className="text-white/30 hover:text-white text-xl p-1">✕</button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+          {loading ? (
+            <div className="text-center py-10 text-white/30">กำลังโหลด...</div>
+          ) : (
+            <>
+              {/* Submissions */}
+              <div>
+                <h4 className="font-semibold text-white mb-3">
+                  📬 การส่งงาน
+                  {detail.submissions.length > 0 && (
+                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/50">{detail.submissions.length} คน</span>
+                  )}
+                </h4>
+                {detail.submissions.length === 0 ? (
+                  <p className="text-sm text-white/30 text-center py-4">ยังไม่มีการส่งงาน</p>
+                ) : (
+                  <div className="space-y-2">
+                    {detail.submissions.map(sub => {
+                      const sm = STATUS_META[sub.status] || STATUS_META.SUBMITTED;
+                      return (
+                        <div key={sub.id} className="flex items-center gap-3 p-3 rounded-xl"
+                          style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)' }}>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                            style={{ background:'rgba(124,58,237,0.2)', color:'#a78bfa' }}>
+                            {sub.student.name.charAt(0)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white">{sub.student.name}</p>
+                            <p className="text-xs" style={{ color:'rgba(255,255,255,0.4)' }}>
+                              ส่งเมื่อ {new Date(sub.submitted_at).toLocaleString('th-TH',{ day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+                              {sub.note && ` · ${sub.note}`}
+                            </p>
+                          </div>
+                          {/* Status badge + change (for managers) */}
+                          {canManage ? (
+                            <select value={sub.status}
+                              onChange={e => handleStatusChange(sub.student_id, e.target.value)}
+                              disabled={updatingId === sub.student_id}
+                              className="text-xs px-2 py-1 rounded-lg border cursor-pointer focus:outline-none"
+                              style={{ background:sm.bg, color:sm.color, borderColor:sm.border, colorScheme:'dark' }}>
+                              {Object.entries(STATUS_META).map(([k,v]) => (
+                                <option key={k} value={k}>{v.icon} {v.label}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background:sm.bg, color:sm.color, border:`1px solid ${sm.border}` }}>
+                              {sm.icon} {sm.label}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Reads — show only to managers */}
+              {canManage && (
+                <div>
+                  <h4 className="font-semibold text-white mb-3">
+                    👁️ ใครอ่านแล้ว
+                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/50">{detail.reads.length} คน</span>
+                  </h4>
+                  {detail.reads.length === 0 ? (
+                    <p className="text-sm text-white/30 text-center py-3">ยังไม่มีใครเปิดดู</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {detail.reads.map(r => (
+                        <div key={r.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs"
+                          style={{ background:'rgba(52,211,153,0.1)', border:'1px solid rgba(52,211,153,0.2)', color:'#6ee7b7' }}>
+                          <span>✓</span>
+                          <span>{r.student.name}</span>
+                          <span style={{ opacity:0.5 }}>{new Date(r.viewed_at).toLocaleTimeString('th-TH',{ hour:'2-digit', minute:'2-digit' })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 /* ══ Edit Modal ══ */
 const EditHomeworkModal = ({ item, onClose, onSaved }) => {
@@ -171,7 +405,10 @@ const DailyHomework = () => {
   const [items, setItems]     = useState([]);
   const [summary, setSummary] = useState({ byDate:{}, total:0, done:0 });
   const [loading, setLoading] = useState(true);
-  const [editTarget, setEditTarget] = useState(null);
+  const [editTarget, setEditTarget]     = useState(null);
+  const [submitTarget, setSubmitTarget] = useState(null);
+  const [detailTarget, setDetailTarget] = useState(null);
+  const canManage = user?.role && ROLE_LEVEL[user.role] >= ROLE_LEVEL['CLASS_ADMIN'];
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -220,6 +457,11 @@ const DailyHomework = () => {
 
   const handleEditSaved = (updated) => {
     setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
+  };
+
+  const handleSubmitted = () => {
+    // mark item as done optimistically
+    if (submitTarget) setItems(prev => prev.map(i => i.id===submitTarget.id ? { ...i, done:true } : i));
   };
 
   const resetForm = () => {
@@ -382,8 +624,32 @@ const DailyHomework = () => {
                   </div>
                 </div>
 
+                {/* Row 1.5: action buttons */}
+                <div className="flex gap-2 mt-2 ml-9">
+                  {/* ส่งการบ้าน — เฉพาะนักเรียน */}
+                  {!canManage && !item.done && (
+                    <button onClick={()=>setSubmitTarget(item)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all hover:scale-105"
+                      style={{ background:'rgba(52,211,153,0.15)', color:'#34d399', border:'1px solid rgba(52,211,153,0.3)' }}>
+                      📬 ส่งการบ้าน
+                    </button>
+                  )}
+                  {!canManage && item.done && (
+                    <span className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl"
+                      style={{ background:'rgba(52,211,153,0.1)', color:'rgba(52,211,153,0.7)', border:'1px solid rgba(52,211,153,0.2)' }}>
+                      ✓ ส่งแล้ว
+                    </span>
+                  )}
+                  {/* ดูรายละเอียด */}
+                  <button onClick={()=>setDetailTarget(item)}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs transition-all hover:bg-white/10"
+                    style={{ color:'rgba(255,255,255,0.4)', border:'1px solid rgba(255,255,255,0.1)' }}>
+                    👁 รายละเอียด
+                  </button>
+                </div>
+
                 {/* Row 2: due date + location */}
-                <div className="flex items-center gap-3 mt-2.5 ml-9 flex-wrap">
+                <div className="flex items-center gap-3 mt-2 ml-9 flex-wrap">
                   {/* Submit location */}
                   <span className="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1"
                     style={{ background:loc.bg, color:loc.color, border:`1px solid ${loc.border}` }}>
@@ -528,6 +794,25 @@ const DailyHomework = () => {
           </button>
         )}
       </main>
+
+      {/* Submit Modal */}
+      {submitTarget && (
+        <SubmitModal
+          item={submitTarget}
+          onClose={()=>setSubmitTarget(null)}
+          onSubmitted={handleSubmitted}
+        />
+      )}
+
+      {/* Detail Modal */}
+      {detailTarget && (
+        <DetailModal
+          item={detailTarget}
+          canManage={canManage}
+          onClose={()=>setDetailTarget(null)}
+          onStatusChanged={fetchItems}
+        />
+      )}
 
       {/* Edit Modal */}
       {editTarget && (
