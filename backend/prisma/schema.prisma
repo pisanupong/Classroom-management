@@ -232,6 +232,7 @@ model Event {
   created_by  Int?
   created_at  DateTime  @default(now())
   is_all_day  Boolean   @default(false)
+  is_personal Boolean   @default(false)  // NOTE type: only creator sees it
 
   // Relations
   creator     User?     @relation(fields: [created_by], references: [id])
@@ -274,6 +275,7 @@ enum EventType {
   EVENT
   HOLIDAY
   SCHOOL
+  NOTE
 }
 
 enum BattleStatus {
