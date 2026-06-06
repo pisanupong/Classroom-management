@@ -60,6 +60,39 @@ const createHomework = async (req, res) => {
   }
 };
 
+// PUT /api/daily-homework/:id  — CLASS_ADMIN and above only
+const updateHomework = async (req, res) => {
+  try {
+    const item = await prisma.dailyHomework.findUnique({ where: { id: parseInt(req.params.id) } });
+    if (!item) return res.status(404).json({ message: 'ไม่พบรายการ' });
+
+    const { ROLE_LEVEL } = require('../middleware/authMiddleware');
+    // ต้องเป็นเจ้าของ หรือ มี role สูงกว่า STUDENT
+    if (item.student_id !== req.user.id && ROLE_LEVEL[req.user.role] < 1) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไข' });
+    }
+
+    const { subject, detail, homework_type, due_date, submit_location } = req.body;
+    const VALID_TYPES     = ['หนังสือ', 'สมุด', 'รายงาน', 'อื่นๆ'];
+    const VALID_LOCATIONS = ['classroom', 'ในห้องเรียน', 'โต๊ะครู'];
+
+    const updated = await prisma.dailyHomework.update({
+      where: { id: item.id },
+      data: {
+        ...(subject          && { subject }),
+        detail:          detail !== undefined ? (detail || null) : item.detail,
+        ...(homework_type    && VALID_TYPES.includes(homework_type)     && { homework_type }),
+        ...(submit_location  && VALID_LOCATIONS.includes(submit_location) && { submit_location }),
+        due_date: due_date === '' ? null : due_date ? new Date(due_date) : item.due_date,
+      },
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
+
 // PATCH /api/daily-homework/:id/toggle
 const toggleDone = async (req, res) => {
   try {
@@ -155,4 +188,4 @@ const getAllStudentsHomework = async (req, res) => {
   }
 };
 
-module.exports = { getHomework, createHomework, toggleDone, deleteHomework, getSummary, getAllStudentsHomework };
+module.exports = { getHomework, createHomework, updateHomework, toggleDone, deleteHomework, getSummary, getAllStudentsHomework };

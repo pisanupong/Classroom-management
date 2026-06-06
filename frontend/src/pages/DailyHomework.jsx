@@ -35,14 +35,143 @@ const LOCATIONS = [
 ];
 const getLocation = (v) => LOCATIONS.find(l => l.value === v) || LOCATIONS[1];
 
+/* ══ Edit Modal ══ */
+const EditHomeworkModal = ({ item, onClose, onSaved }) => {
+  const [form, setForm] = useState({
+    subject:         item.subject,
+    detail:          item.detail || '',
+    homework_type:   item.homework_type || 'อื่นๆ',
+    due_date:        item.due_date ? item.due_date.slice(0,10) : '',
+    submit_location: item.submit_location || 'ในห้องเรียน',
+  });
+  const [customSubject, setCustomSubject] = useState(!SUBJECT_LIST.includes(item.subject));
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+
+  const handleSubmit = async e => {
+    e.preventDefault(); setSaving(true); setError('');
+    try {
+      const res = await api.put(`/daily-homework/${item.id}`, form);
+      onSaved(res.data);
+      onClose();
+    } catch (err) { setError(err.response?.data?.message || 'เกิดข้อผิดพลาด'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      style={{ background:'rgba(0,0,0,0.8)', backdropFilter:'blur(6px)' }}
+      onClick={e => e.target===e.currentTarget && onClose()}>
+      <div className="w-full max-w-lg rounded-3xl p-5 border text-white max-h-[90vh] overflow-y-auto"
+        style={{ background:'rgba(15,20,50,0.98)', borderColor:'rgba(255,255,255,0.1)' }}>
+        <h3 className="font-bold text-lg mb-4">✏️ แก้ไขการบ้าน</h3>
+        {error && <div className="mb-3 p-3 rounded-xl text-sm text-red-300 bg-red-500/10 border border-red-500/30">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* Subject */}
+          <div>
+            <label className="block text-xs text-white/50 mb-2">วิชา *</label>
+            {!customSubject ? (
+              <div className="flex flex-wrap gap-2">
+                {SUBJECT_LIST.map(s => (
+                  <button key={s} type="button" onClick={()=>setForm({...form,subject:s})}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all"
+                    style={{
+                      background: form.subject===s?`${getColor(s)}40`:'rgba(255,255,255,0.07)',
+                      color:      form.subject===s?getColor(s):'rgba(255,255,255,0.5)',
+                      border:     `1px solid ${form.subject===s?getColor(s)+'60':'transparent'}`,
+                    }}>{s}</button>
+                ))}
+                <button type="button" onClick={()=>{ setCustomSubject(true); }}
+                  className="px-3 py-1.5 rounded-xl text-xs text-white/30 hover:text-white/60 border border-white/10">+ พิมพ์เอง</button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input autoFocus type="text" value={form.subject}
+                  onChange={e=>setForm({...form,subject:e.target.value})}
+                  className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"/>
+                <button type="button" onClick={()=>setCustomSubject(false)}
+                  className="px-3 py-2 rounded-xl text-white/40 border border-white/10 text-xs">รายการ</button>
+              </div>
+            )}
+          </div>
+
+          {/* Homework type */}
+          <div>
+            <label className="block text-xs text-white/50 mb-2">ประเภทงาน</label>
+            <div className="grid grid-cols-4 gap-2">
+              {HW_TYPES.map(t => {
+                const active = form.homework_type === t.value;
+                return (
+                  <button key={t.value} type="button" onClick={()=>setForm({...form,homework_type:t.value})}
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-medium transition-all border"
+                    style={{ background:active?t.bg:'rgba(255,255,255,0.05)', color:active?t.color:'rgba(255,255,255,0.4)', borderColor:active?t.border:'transparent' }}>
+                    <span className="text-xl">{t.icon}</span>{t.value}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Submit location */}
+          <div>
+            <label className="block text-xs text-white/50 mb-2">สถานที่ส่ง</label>
+            <div className="grid grid-cols-3 gap-2">
+              {LOCATIONS.map(l => {
+                const active = form.submit_location === l.value;
+                return (
+                  <button key={l.value} type="button" onClick={()=>setForm({...form,submit_location:l.value})}
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-medium transition-all border"
+                    style={{ background:active?l.bg:'rgba(255,255,255,0.05)', color:active?l.color:'rgba(255,255,255,0.4)', borderColor:active?l.border:'transparent' }}>
+                    <span className="text-xl">{l.icon}</span>
+                    <span className="text-center leading-tight">{l.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Due date */}
+          <div>
+            <label className="block text-xs text-white/50 mb-1.5">กำหนดส่ง</label>
+            <input type="date" value={form.due_date} onChange={e=>setForm({...form,due_date:e.target.value})}
+              className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+              style={{ colorScheme:'dark' }}/>
+          </div>
+
+          {/* Detail */}
+          <div>
+            <label className="block text-xs text-white/50 mb-1.5">รายละเอียด</label>
+            <input type="text" value={form.detail} onChange={e=>setForm({...form,detail:e.target.value})}
+              placeholder="เช่น แบบฝึกหัดหน้า 45-50"
+              className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-400"/>
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/50 hover:text-white text-sm">ยกเลิก</button>
+            <button type="submit" disabled={saving}
+              className="flex-1 py-2.5 rounded-xl font-medium text-white text-sm disabled:opacity-50"
+              style={{ background:'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+              {saving ? 'กำลังบันทึก...' : '💾 บันทึก'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const DailyHomework = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const canEdit  = user?.role && user.role !== 'STUDENT';
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [items, setItems]     = useState([]);
   const [summary, setSummary] = useState({ byDate:{}, total:0, done:0 });
   const [loading, setLoading] = useState(true);
+  const [editTarget, setEditTarget] = useState(null);
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -87,6 +216,10 @@ const DailyHomework = () => {
       const r = await api.get('/daily-homework/summary', { params:{ days:7 } });
       setSummary(r.data);
     } catch { fetchItems(); }
+  };
+
+  const handleEditSaved = (updated) => {
+    setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
   };
 
   const resetForm = () => {
@@ -239,8 +372,14 @@ const DailyHomework = () => {
                     )}
                   </div>
 
-                  <button onClick={()=>handleDelete(item.id)}
-                    className="text-white/20 hover:text-red-400 transition-colors text-sm flex-shrink-0 p-1">✕</button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {canEdit && (
+                      <button onClick={()=>setEditTarget(item)}
+                        className="text-white/20 hover:text-purple-400 transition-colors text-sm p-1">✏️</button>
+                    )}
+                    <button onClick={()=>handleDelete(item.id)}
+                      className="text-white/20 hover:text-red-400 transition-colors text-sm p-1">✕</button>
+                  </div>
                 </div>
 
                 {/* Row 2: due date + location */}
@@ -389,6 +528,15 @@ const DailyHomework = () => {
           </button>
         )}
       </main>
+
+      {/* Edit Modal */}
+      {editTarget && (
+        <EditHomeworkModal
+          item={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={handleEditSaved}
+        />
+      )}
     </div>
   );
 };
