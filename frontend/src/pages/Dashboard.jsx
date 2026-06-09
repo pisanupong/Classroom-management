@@ -254,6 +254,7 @@ const Dashboard = () => {
   const rm = ROLE_META[user?.role] || ROLE_META.STUDENT;
 
   return (
+    <>
     <div className="min-h-screen text-white" style={{ background: 'linear-gradient(135deg, #0f0c29 0%, #1a1a2e 40%, #16213e 100%)' }}>
       {/* Decorative blobs */}
       <div className="fixed top-0 left-0 w-[500px] h-[500px] rounded-full opacity-10 pointer-events-none"
@@ -571,6 +572,7 @@ const Dashboard = () => {
     </div>
 
     {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
+    </>
   );
 };
 
