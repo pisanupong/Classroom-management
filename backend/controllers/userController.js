@@ -68,9 +68,14 @@ const loginUser = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Check for user username
-    const user = await prisma.user.findUnique({
-      where: { username },
+    // Check by username OR student_number
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: username },
+          { student_number: username },
+        ],
+      },
     });
 
     if (user && (await bcrypt.compare(password, user.password_hash))) {
