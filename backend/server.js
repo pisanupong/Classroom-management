@@ -24,6 +24,7 @@ const port = process.env.PORT || 5000;
 app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
 app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
 app.use(express.json());
+app.use((req, res, next) => { console.log(`[REQ] ${req.method} ${req.path}`); next(); });
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
