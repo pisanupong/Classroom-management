@@ -279,8 +279,13 @@ const Dashboard = () => {
     { path: '/leaderboard',   icon: '🕹️', label: 'Ranking',     permKey: 'leaderboard'   },
   ].filter(n => {
     if (n.roles) return n.roles.includes(user?.role);
-    const allowed = mp[n.permKey] ?? ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'];
-    return allowed.includes(user?.role);
+    const perm = mp[n.permKey];
+    // support both old format (array) and new format ({ view, edit })
+    if (!perm) return true;
+    if (Array.isArray(perm)) return perm.includes(user?.role);
+    const viewRoles = perm.view || [];
+    const editRoles = perm.edit || [];
+    return viewRoles.includes(user?.role) || editRoles.includes(user?.role);
   });
 
   const rm = ROLE_META[user?.role] || ROLE_META.STUDENT;
