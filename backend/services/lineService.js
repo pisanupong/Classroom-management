@@ -4,11 +4,16 @@ const LINE_API = 'https://api.line.me/v2/bot/message/push';
 const TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 
 const push = async (lineUserId, messages) => {
-  if (!lineUserId || !TOKEN) return;
+  if (!lineUserId || !TOKEN) {
+    console.log('[LINE] push skipped: lineUserId=', lineUserId, 'TOKEN=', TOKEN ? 'set' : 'missing');
+    return;
+  }
   try {
-    await axios.post(LINE_API, { to: lineUserId, messages }, {
+    console.log('[LINE] pushing to', lineUserId);
+    const res = await axios.post(LINE_API, { to: lineUserId, messages }, {
       headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
     });
+    console.log('[LINE] push ok', res.status);
   } catch (err) {
     console.error('[LINE] push error:', err.response?.data || err.message);
   }
