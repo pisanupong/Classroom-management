@@ -17,7 +17,7 @@ const RewardCard = ({ reward, myPoints, isTeacher, onRedeem, onEdit, onDelete })
       {/* Image */}
       <div className="relative aspect-video bg-white/5 flex items-center justify-center overflow-hidden">
         {reward.image_url ? (
-          <img src={reward.image_url} alt={reward.title} className="w-full h-full object-cover" />
+          <img src={reward.image_url} alt={reward.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : (
           <span className="text-5xl opacity-30">🎁</span>
         )}
