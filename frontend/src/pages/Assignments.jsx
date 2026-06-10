@@ -187,8 +187,9 @@ const NotStartedBadge = () => (
 );
 
 /* ─── Assignment Mission Card ────────────────────────────────────────────── */
-const MissionCard = ({ assignment, userRole, userId, onClick }) => {
+const MissionCard = ({ assignment, userRole, userId, onClick, onEdit, onDelete }) => {
   const isTeacher = ROLE_LEVEL[userRole] >= ROLE_LEVEL['CLASS_ADMIN'];
+  const isAdmin   = ROLE_LEVEL[userRole] >= ROLE_LEVEL['ADMIN'];
   const days      = daysLeft(assignment.due_date);
   const overdue   = days < 0;
 
@@ -259,6 +260,21 @@ const MissionCard = ({ assignment, userRole, userId, onClick }) => {
                   {assignment.description}
                 </p>
               )}
+              {/* ประเภทงาน + สถานที่ส่ง */}
+              <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                {assignment.homework_type && (
+                  <span className="text-xs px-2 py-0.5 rounded-full border"
+                    style={{ background: 'rgba(124,58,237,0.15)', borderColor: 'rgba(124,58,237,0.3)', color: '#c4b5fd' }}>
+                    🗂️ {assignment.homework_type}
+                  </span>
+                )}
+                {assignment.submit_location && (
+                  <span className="text-xs px-2 py-0.5 rounded-full border"
+                    style={{ background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.25)', color: '#6ee7b7' }}>
+                    📍 {assignment.submit_location}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Score badge */}
@@ -288,12 +304,33 @@ const MissionCard = ({ assignment, userRole, userId, onClick }) => {
               <p className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>ผู้มอบหมาย</p>
             </div>
             <div className="text-right">
+              {assignment.start_date && (
+                <p className="text-xs mb-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  📅 เปิด {fmtDate(assignment.start_date)}
+                </p>
+              )}
               <p className="text-xs font-medium"
                 style={{ color: overdue ? '#f87171' : days <= 2 ? '#fcd34d' : 'rgba(255,255,255,0.5)' }}>
                 ⏰ {fmtDate(assignment.due_date)}
               </p>
             </div>
           </div>
+
+          {/* Admin edit/delete */}
+          {isAdmin && (
+            <div className="flex gap-2 mb-3">
+              <button onClick={e => { e.stopPropagation(); onEdit && onEdit(assignment); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all hover:scale-105"
+                style={{ background: 'rgba(124,58,237,0.15)', borderColor: 'rgba(124,58,237,0.3)', color: '#c4b5fd' }}>
+                ✏️ แก้ไข
+              </button>
+              <button onClick={e => { e.stopPropagation(); onDelete && onDelete(assignment); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all hover:scale-105"
+                style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)', color: '#fca5a5' }}>
+                🗑️ ลบ
+              </button>
+            </div>
+          )}
 
           {/* ── 2. จำนวนคนส่ง (ทุก role เห็น) ── */}
           <div className="mb-3">
@@ -391,6 +428,130 @@ const StatsBar = ({ assignments, userRole, userId }) => {
   );
 };
 
+/* ─── Edit Modal ─────────────────────────────────────────────────────────── */
+const HW_TYPES  = ['แบบฝึกหัด', 'รายงาน', 'โปรเจกต์', 'ชิ้นงาน', 'อื่นๆ'];
+const LOCATIONS = ['ในห้องเรียน', 'โต๊ะครู', 'ออนไลน์', 'อื่นๆ'];
+
+const toLocalDT = (d) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+  return dt.toISOString().slice(0, 16);
+};
+
+const EditModal = ({ assignment, onClose, onSaved }) => {
+  const [form, setForm] = useState({
+    title:           assignment.title,
+    description:     assignment.description || '',
+    start_date:      toLocalDT(assignment.start_date),
+    due_date:        toLocalDT(assignment.due_date),
+    max_score:       String(assignment.max_score),
+    bonus_points:    String(assignment.bonus_points || 0),
+    homework_type:   assignment.homework_type || '',
+    submit_location: assignment.submit_location || '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr]       = useState('');
+
+  const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleSave = async () => {
+    setSaving(true); setErr('');
+    try {
+      const res = await api.put(`/assignments/${assignment.id}`, form);
+      onSaved(res.data);
+      onClose();
+    } catch (e) {
+      setErr(e.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl border p-6 space-y-4 overflow-y-auto max-h-[90vh]"
+        style={{ background: '#0f0c29', borderColor: 'rgba(124,58,237,0.3)' }}
+        onClick={e => e.stopPropagation()}>
+        <h2 className="font-bold text-white text-lg">✏️ แก้ไขการบ้าน</h2>
+        {err && <p className="text-red-400 text-sm">{err}</p>}
+
+        {[
+          { label: 'ชื่อการบ้าน *', name: 'title', type: 'text' },
+          { label: 'คำอธิบาย', name: 'description', type: 'text' },
+        ].map(f => (
+          <div key={f.name}>
+            <label className="block text-xs text-white/50 mb-1">{f.label}</label>
+            <input type={f.type} name={f.name} value={form[f.name]} onChange={handleChange}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"/>
+          </div>
+        ))}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-white/50 mb-1">🗂️ ประเภทงาน</label>
+            <select name="homework_type" value={form.homework_type} onChange={handleChange}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+              style={{ colorScheme: 'dark' }}>
+              <option value="" style={{ background: '#1a1a3a' }}>— เลือก —</option>
+              {HW_TYPES.map(t => <option key={t} value={t} style={{ background: '#1a1a3a' }}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-white/50 mb-1">📍 สถานที่ส่ง</label>
+            <select name="submit_location" value={form.submit_location} onChange={handleChange}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+              style={{ colorScheme: 'dark' }}>
+              <option value="" style={{ background: '#1a1a3a' }}>— เลือก —</option>
+              {LOCATIONS.map(l => <option key={l} value={l} style={{ background: '#1a1a3a' }}>{l}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-white/50 mb-1">📅 วันเปิดรับ</label>
+            <input type="datetime-local" name="start_date" value={form.start_date} onChange={handleChange}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+              style={{ colorScheme: 'dark' }}/>
+          </div>
+          <div>
+            <label className="block text-xs text-white/50 mb-1">⏰ กำหนดส่ง *</label>
+            <input type="datetime-local" name="due_date" value={form.due_date} onChange={handleChange}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+              style={{ colorScheme: 'dark' }}/>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs text-white/50 mb-1">🏆 คะแนนเต็ม *</label>
+            <input type="number" name="max_score" value={form.max_score} onChange={handleChange} min="1"
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"/>
+          </div>
+          <div>
+            <label className="block text-xs text-white/50 mb-1">⭐ Bonus</label>
+            <input type="number" name="bonus_points" value={form.bonus_points} onChange={handleChange} min="0"
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"/>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose}
+            className="flex-1 py-2 rounded-xl border border-white/10 text-white/50 hover:text-white text-sm transition-colors">
+            ยกเลิก
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 py-2 rounded-xl font-semibold text-white text-sm disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+            {saving ? 'กำลังบันทึก...' : '💾 บันทึก'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ─── Main Page ──────────────────────────────────────────────────────────── */
 const Assignments = () => {
   const { user }  = useContext(AuthContext);
@@ -398,7 +559,9 @@ const Assignments = () => {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading]         = useState(true);
   const [filter, setFilter]           = useState('all'); // all | pending | done | urgent
+  const [editTarget, setEditTarget]   = useState(null);
   const isTeacher = ROLE_LEVEL[user?.role] >= ROLE_LEVEL['CLASS_ADMIN'];
+  const isAdmin   = ROLE_LEVEL[user?.role] >= ROLE_LEVEL['ADMIN'];
 
   useEffect(() => {
     api.get('/assignments')
@@ -406,6 +569,20 @@ const Assignments = () => {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDelete = async (a) => {
+    if (!window.confirm(`ลบการบ้าน "${a.title}" ?`)) return;
+    try {
+      await api.delete(`/assignments/${a.id}`);
+      setAssignments(prev => prev.filter(x => x.id !== a.id));
+    } catch (e) {
+      alert(e.response?.data?.message || 'ลบไม่สำเร็จ');
+    }
+  };
+
+  const handleSaved = (updated) => {
+    setAssignments(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a));
+  };
 
   // Filter logic
   const filtered = assignments.filter(a => {
@@ -534,12 +711,22 @@ const Assignments = () => {
                   userRole={user?.role}
                   userId={user?.id}
                   onClick={() => navigate(`/assignments/${a.id}`)}
+                  onEdit={setEditTarget}
+                  onDelete={handleDelete}
                 />
               ))}
             </div>
           </>
         )}
       </main>
+
+      {editTarget && (
+        <EditModal
+          assignment={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={handleSaved}
+        />
+      )}
     </div>
   );
 };

@@ -10,9 +10,12 @@ const CreateAssignment = () => {
   const navigate  = useNavigate();
 
   const [form, setForm] = useState({
-    title: '', description: '', due_date: '', max_score: '', bonus_points: '',
-    subject_id: '', teacher_id: '',
+    title: '', description: '', start_date: '', due_date: '', max_score: '', bonus_points: '',
+    subject_id: '', teacher_id: '', homework_type: '', submit_location: '',
   });
+
+  const HW_TYPES  = ['แบบฝึกหัด', 'รายงาน', 'โปรเจกต์', 'ชิ้นงาน', 'อื่นๆ'];
+  const LOCATIONS = ['ในห้องเรียน', 'โต๊ะครู', 'ออนไลน์', 'อื่นๆ'];
   const [subjects,  setSubjects]  = useState([]);
   const [teachers,  setTeachers]  = useState([]);
   const [loading,   setLoading]   = useState(false);
@@ -60,8 +63,11 @@ const CreateAssignment = () => {
     try {
       await api.post('/assignments', {
         ...form,
-        subject_id: form.subject_id || null,
-        teacher_id: form.teacher_id || null,
+        subject_id:      form.subject_id      || null,
+        teacher_id:      form.teacher_id      || null,
+        homework_type:   form.homework_type   || null,
+        submit_location: form.submit_location || null,
+        start_date:      form.start_date      || null,
       });
       navigate('/assignments');
     } catch (err) {
@@ -217,13 +223,45 @@ const CreateAssignment = () => {
                   className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/20 text-sm focus:outline-none focus:border-purple-400 resize-none"/>
               </div>
 
+              {/* ประเภทงาน + สถานที่ส่ง */}
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-white/60 mb-1.5">🗂️ ประเภทงาน</label>
+                  <select name="homework_type" value={form.homework_type} onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+                    style={{ colorScheme: 'dark' }}>
+                    <option value="" style={{ background: '#1a1a3a' }}>— เลือกประเภท —</option>
+                    {HW_TYPES.map(t => <option key={t} value={t} style={{ background: '#1a1a3a' }}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-1.5">📍 สถานที่ส่ง</label>
+                  <select name="submit_location" value={form.submit_location} onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+                    style={{ colorScheme: 'dark' }}>
+                    <option value="" style={{ background: '#1a1a3a' }}>— เลือกสถานที่ —</option>
+                    {LOCATIONS.map(l => <option key={l} value={l} style={{ background: '#1a1a3a' }}>{l}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* ช่วงวันส่ง */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-white/60 mb-1.5">📅 วันเปิดรับ</label>
+                  <input type="datetime-local" name="start_date" value={form.start_date} onChange={handleChange}
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
+                    style={{ colorScheme: 'dark' }}/>
+                </div>
                 <div>
                   <label className="block text-sm text-white/60 mb-1.5">⏰ กำหนดส่ง *</label>
                   <input type="datetime-local" name="due_date" value={form.due_date} onChange={handleChange} required
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-400"
                     style={{ colorScheme: 'dark' }}/>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-white/60 mb-1.5">🏆 คะแนนเต็ม *</label>
                   <input type="number" name="max_score" value={form.max_score} onChange={handleChange} required min="1" max="1000"

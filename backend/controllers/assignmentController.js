@@ -97,9 +97,12 @@ const getAssignmentById = async (req, res) => {
 // @desc    Create assignment (Teacher only)
 // @route   POST /api/assignments
 // @access  Private (TEACHER)
+const VALID_HW_TYPES   = ['แบบฝึกหัด', 'รายงาน', 'โปรเจกต์', 'ชิ้นงาน', 'อื่นๆ'];
+const VALID_LOCATIONS  = ['ในห้องเรียน', 'โต๊ะครู', 'ออนไลน์', 'อื่นๆ'];
+
 const createAssignment = async (req, res) => {
   try {
-    const { title, description, due_date, max_score, bonus_points, subject_id, teacher_id } = req.body;
+    const { title, description, start_date, due_date, max_score, bonus_points, subject_id, teacher_id, homework_type, submit_location } = req.body;
 
     if (!title || !due_date || !max_score) {
       return res.status(400).json({ message: 'กรุณากรอกชื่อ กำหนดส่ง และคะแนน' });
@@ -111,12 +114,15 @@ const createAssignment = async (req, res) => {
     const assignment = await prisma.assignment.create({
       data: {
         title,
-        description: description || null,
-        due_date: new Date(due_date),
-        max_score: parseInt(max_score),
-        bonus_points: bonus_points ? parseInt(bonus_points) : 0,
-        created_by: assignedTeacher,
-        subject_id: subject_id ? parseInt(subject_id) : null,
+        description:     description || null,
+        start_date:      start_date ? new Date(start_date) : null,
+        due_date:        new Date(due_date),
+        max_score:       parseInt(max_score),
+        bonus_points:    bonus_points ? parseInt(bonus_points) : 0,
+        homework_type:   VALID_HW_TYPES.includes(homework_type)  ? homework_type  : null,
+        submit_location: VALID_LOCATIONS.includes(submit_location) ? submit_location : null,
+        created_by:      assignedTeacher,
+        subject_id:      subject_id ? parseInt(subject_id) : null,
       },
       include: {
         teacher: { select: { id: true, name: true } },
@@ -144,20 +150,23 @@ const updateAssignment = async (req, res) => {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    if (assignment.created_by !== req.user.id) {
+    if (assignment.created_by !== req.user.id && ROLE_LEVEL[req.user.role] < ROLE_LEVEL['ADMIN']) {
       return res.status(403).json({ message: 'Not authorized to update this assignment' });
     }
 
-    const { title, description, due_date, max_score, bonus_points } = req.body;
+    const { title, description, start_date, due_date, max_score, bonus_points, homework_type, submit_location } = req.body;
 
     const updated = await prisma.assignment.update({
       where: { id: parseInt(req.params.id) },
       data: {
-        title:        title        || assignment.title,
-        description:  description  !== undefined ? description  : assignment.description,
-        due_date:     due_date     ? new Date(due_date)         : assignment.due_date,
-        max_score:    max_score    ? parseInt(max_score)        : assignment.max_score,
-        bonus_points: bonus_points !== undefined ? parseInt(bonus_points) : assignment.bonus_points,
+        title:           title        || assignment.title,
+        description:     description  !== undefined ? description  : assignment.description,
+        start_date:      start_date === '' ? null : start_date ? new Date(start_date) : assignment.start_date,
+        due_date:        due_date     ? new Date(due_date)         : assignment.due_date,
+        max_score:       max_score    ? parseInt(max_score)        : assignment.max_score,
+        bonus_points:    bonus_points !== undefined ? parseInt(bonus_points) : assignment.bonus_points,
+        homework_type:   homework_type   !== undefined ? (VALID_HW_TYPES.includes(homework_type)   ? homework_type   : null) : assignment.homework_type,
+        submit_location: submit_location !== undefined ? (VALID_LOCATIONS.includes(submit_location) ? submit_location : null) : assignment.submit_location,
       },
     });
 
@@ -181,7 +190,7 @@ const deleteAssignment = async (req, res) => {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    if (assignment.created_by !== req.user.id) {
+    if (assignment.created_by !== req.user.id && ROLE_LEVEL[req.user.role] < ROLE_LEVEL['ADMIN']) {
       return res.status(403).json({ message: 'Not authorized to delete this assignment' });
     }
 

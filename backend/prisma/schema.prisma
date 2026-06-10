@@ -97,14 +97,17 @@ model Subject {
 }
 
 model Assignment {
-  id           Int       @id @default(autoincrement())
-  title        String
-  description  String?
-  due_date     DateTime
-  max_score    Int
-  bonus_points Int       @default(0)
-  created_by   Int
-  subject_id   Int?
+  id              Int       @id @default(autoincrement())
+  title           String
+  description     String?
+  start_date      DateTime?
+  due_date        DateTime
+  max_score       Int
+  bonus_points    Int       @default(0)
+  homework_type   String?
+  submit_location String?
+  created_by      Int
+  subject_id      Int?
 
   // Relations
   teacher     User      @relation(fields: [created_by], references: [id])
