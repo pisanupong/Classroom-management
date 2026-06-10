@@ -3,7 +3,7 @@ const prisma = require('../config/db');
 const xlsx  = require('xlsx');
 const { ROLE_LEVEL } = require('../middleware/authMiddleware');
 
-const VALID_ROLES = ['STUDENT', 'CLASS_ADMIN', 'TEACHER', 'ADMIN', 'SUPER_USER'];
+const VALID_ROLES = ['STUDENT', 'PARENT', 'STAFF', 'CLASS_ADMIN', 'TEACHER', 'ADMIN', 'SUPER_USER'];
 
 // GET /api/admin/users?search=&role=
 const getUsers = async (req, res) => {
