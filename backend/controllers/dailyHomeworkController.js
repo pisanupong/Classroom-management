@@ -55,10 +55,12 @@ const createHomework = async (req, res) => {
     });
 
     // LINE notify ทุกคนที่ผูก LINE
+    console.log('[HW] LINE notify section reached');
     const usersWithLine = await prisma.user.findMany({
       where: { line_user_id: { not: null } },
       select: { line_user_id: true },
     });
+    console.log('[HW] LINE users count:', usersWithLine.length);
     usersWithLine.forEach(u => notifyNewHomework(u.line_user_id, item));
 
     res.status(201).json(item);
