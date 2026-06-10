@@ -56,6 +56,7 @@ app.use('/api/vocab',          require('./routes/vocabRoutes'));
 app.use('/api/subjects',       require('./routes/subjectRoutes'));
 app.use('/api/settings',      require('./routes/settingRoutes'));
 app.use('/api/upload',        require('./routes/uploadRoutes'));
+app.use('/api/line',          require('./routes/lineRoutes'));
 
 // Serve uploaded files as static assets
 const path = require('path');
@@ -293,6 +294,10 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   console.error(err.stack);
   res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
 });
+
+// Start cron jobs
+const { startDeadlineReminder } = require('./jobs/deadlineReminder');
+startDeadlineReminder();
 
 server.listen(port, () => console.log(`Server is running on port ${port}`));
 

@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { notifyNewHomework } = require('../services/lineService');
 
 // helper: parse date string to start/end of day UTC
 const dayRange = (dateStr) => {
@@ -52,6 +53,10 @@ const createHomework = async (req, res) => {
         date:            start,
       },
     });
+
+    // LINE notify ผู้สร้าง (ถ้ามี line_user_id)
+    const creator = await prisma.user.findUnique({ where: { id: req.user.id }, select: { line_user_id: true } });
+    if (creator?.line_user_id) notifyNewHomework(creator.line_user_id, item);
 
     res.status(201).json(item);
   } catch (error) {

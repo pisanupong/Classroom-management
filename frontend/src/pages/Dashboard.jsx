@@ -219,6 +219,29 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [expandedAssignment, setExpandedAssignment] = useState(null);
   const [showChangePwd, setShowChangePwd] = useState(false);
+  const [lineLinked, setLineLinked] = useState(false);
+  const [lineMsg, setLineMsg] = useState('');
+
+  // Check LINE link status + handle callback result
+  useEffect(() => {
+    api.get('/line/status').then(r => setLineLinked(r.data.linked)).catch(() => {});
+    const params = new URLSearchParams(window.location.search);
+    const lineResult = params.get('line');
+    if (lineResult === 'success') { setLineLinked(true); setLineMsg('✅ ผูก LINE สำเร็จ!'); window.history.replaceState({}, '', '/dashboard'); setTimeout(() => setLineMsg(''), 4000); }
+    if (lineResult === 'error')   { setLineMsg('❌ ผูก LINE ไม่สำเร็จ'); window.history.replaceState({}, '', '/dashboard'); setTimeout(() => setLineMsg(''), 4000); }
+  }, []);
+
+  const handleLineLink = () => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    window.location.href = `${import.meta.env.VITE_API_URL || 'http://72.62.67.40:5000/api'}/line/auth?token=${token}`;
+  };
+
+  const handleLineUnlink = async () => {
+    await api.delete('/line/unlink');
+    setLineLinked(false);
+    setLineMsg('ยกเลิกการผูก LINE แล้ว');
+    setTimeout(() => setLineMsg(''), 3000);
+  };
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -300,6 +323,15 @@ const Dashboard = () => {
                 {rm.icon} {rm.label}
               </p>
             </div>
+          </button>
+          <button
+            onClick={lineLinked ? handleLineUnlink : handleLineLink}
+            title={lineLinked ? 'ยกเลิกผูก LINE' : 'ผูก LINE เพื่อรับแจ้งเตือน'}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border"
+            style={lineLinked
+              ? { background:'rgba(6,214,160,0.15)', color:'#06d6a0', borderColor:'rgba(6,214,160,0.3)' }
+              : { background:'rgba(6,214,160,0.08)', color:'rgba(255,255,255,0.4)', borderColor:'rgba(255,255,255,0.1)' }}>
+            {lineLinked ? '💚 LINE' : '🔗 LINE'}
           </button>
           <button onClick={logout}
             className="px-3 py-1.5 rounded-lg text-sm font-medium text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20">
@@ -574,6 +606,16 @@ const Dashboard = () => {
     </div>
 
     {showChangePwd && <ChangePasswordModal onClose={() => setShowChangePwd(false)} />}
+
+    {lineMsg && (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl text-sm font-medium shadow-2xl border"
+        style={{ background: lineMsg.includes('✅') ? 'rgba(6,214,160,0.2)' : lineMsg.includes('❌') ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.1)',
+                 color: lineMsg.includes('✅') ? '#06d6a0' : lineMsg.includes('❌') ? '#f87171' : '#fff',
+                 borderColor: lineMsg.includes('✅') ? 'rgba(6,214,160,0.4)' : lineMsg.includes('❌') ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.2)',
+                 backdropFilter: 'blur(12px)' }}>
+        {lineMsg}
+      </div>
+    )}
     </>
   );
 };

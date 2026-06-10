@@ -53,6 +53,7 @@ model User {
   total_points   Int       @default(0)
   last_active      DateTime?
   character_data   Json?
+  line_user_id     String?
 
   // Relations
   assignments    Assignment[]

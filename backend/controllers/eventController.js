@@ -1,5 +1,6 @@
 const prisma = require('../config/db');
 const { ROLE_LEVEL } = require('../middleware/authMiddleware');
+const { notifyNewEvent } = require('../services/lineService');
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 const isSameDay = (a, b) =>
@@ -110,6 +111,12 @@ const createEvent = async (req, res) => {
       },
       include: { creator: { select: { id: true, name: true } } },
     });
+    // LINE notify ทุกคนที่ผูก LINE (เฉพาะ public event)
+    if (!event.is_personal) {
+      const users = await prisma.user.findMany({ where: { line_user_id: { not: null } }, select: { line_user_id: true } });
+      users.forEach(u => notifyNewEvent(u.line_user_id, event));
+    }
+
     res.status(201).json(event);
   } catch (error) {
     console.error(error);
