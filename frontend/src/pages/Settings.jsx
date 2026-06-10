@@ -650,7 +650,7 @@ const TabPermissions = ({ settings, onSaved }) => {
       {/* Matrix */}
       <div className="rounded-2xl overflow-hidden" style={{ border:'1px solid rgba(255,255,255,0.08)' }}>
         <div className="grid px-4 py-3 text-xs font-medium uppercase tracking-wide"
-          style={{ gridTemplateColumns:'1fr repeat(5,64px)', borderBottom:'1px solid rgba(255,255,255,0.08)', background:'rgba(255,255,255,0.05)', color:'rgba(255,255,255,0.4)' }}>
+          style={{ gridTemplateColumns:'1fr repeat(7,64px)', borderBottom:'1px solid rgba(255,255,255,0.08)', background:'rgba(255,255,255,0.05)', color:'rgba(255,255,255,0.4)' }}>
           <div>เมนู</div>
           {ALL_ROLES.map(r => (
             <div key={r} className="text-center" style={{ color:ROLE_META[r].color }}>
@@ -663,7 +663,7 @@ const TabPermissions = ({ settings, onSaved }) => {
         {MENU_DEFS.map((menu, idx) => (
           <div key={menu.key}
             className="grid px-4 py-3 items-center hover:bg-white/5 transition-colors"
-            style={{ gridTemplateColumns:'1fr repeat(5,64px)', borderTop: idx===0?'none':'1px solid rgba(255,255,255,0.04)' }}>
+            style={{ gridTemplateColumns:'1fr repeat(7,64px)', borderTop: idx===0?'none':'1px solid rgba(255,255,255,0.04)' }}>
             <div className="flex items-center gap-2.5">
               <span className="text-lg">{menu.icon}</span>
               <span className="text-sm font-medium text-white">{menu.label}</span>
