@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 
-const ROLE_LEVEL = { STUDENT:0, CLASS_ADMIN:1, TEACHER:2, ADMIN:3, SUPER_USER:4 };
+const ROLE_LEVEL = { STUDENT:0, PARENT:0, STAFF:1, CLASS_ADMIN:1, TEACHER:2, ADMIN:3, SUPER_USER:4 };
 
 const STATUS_META = {
   SUBMITTED: { label:'ส่งแล้ว',   color:'#60a5fa', bg:'rgba(96,165,250,0.15)',   border:'rgba(96,165,250,0.3)',   icon:'📬' },

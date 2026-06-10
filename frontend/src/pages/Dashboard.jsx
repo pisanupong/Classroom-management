@@ -97,12 +97,14 @@ const ChangePasswordModal = ({ onClose }) => {
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ROLE_META = {
   STUDENT:     { label: 'นักเรียน',       icon: '🎒', color: '#0ea5e9' },
+  PARENT:      { label: 'ผู้ปกครอง',      icon: '👨‍👩‍👧', color: '#f97316' },
+  STAFF:       { label: 'ทีมงาน',         icon: '🧑‍💼', color: '#8b5cf6' },
   CLASS_ADMIN: { label: 'ประธานนักเรียน', icon: '📋', color: '#10b981' },
   TEACHER:     { label: 'ครู',            icon: '👩‍🏫', color: '#7c3aed' },
   ADMIN:       { label: 'Admin',          icon: '🛡️',  color: '#f59e0b' },
   SUPER_USER:  { label: 'Super User',     icon: '👑',  color: '#ef4444' },
 };
-const ROLE_LEVEL = { STUDENT: 0, CLASS_ADMIN: 1, TEACHER: 2, ADMIN: 3, SUPER_USER: 4 };
+const ROLE_LEVEL = { STUDENT: 0, PARENT: 0, STAFF: 1, CLASS_ADMIN: 1, TEACHER: 2, ADMIN: 3, SUPER_USER: 4 };
 const MONTHS_TH = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 const DAYS_SHORT = ['อา','จ','อ','พ','พฤ','ศ','ส'];
 

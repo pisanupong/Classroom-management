@@ -9,6 +9,8 @@ datasource db {
 
 enum Role {
   STUDENT
+  PARENT
+  STAFF
   CLASS_ADMIN
   TEACHER
   ADMIN

@@ -4,6 +4,8 @@ const prisma = require('../config/db');
 // Role hierarchy: higher index = more permissions
 const ROLE_LEVEL = {
   STUDENT:     0,
+  PARENT:      0,   // ผู้ปกครอง (same level as student)
+  STAFF:       1,   // ทีมงาน
   CLASS_ADMIN: 1,   // นักเรียนแอดมิน
   TEACHER:     2,
   ADMIN:       3,

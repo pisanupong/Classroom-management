@@ -4,16 +4,18 @@ import { AuthContext } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import api from '../services/api';
 
-const ROLE_LEVEL = { STUDENT:0, CLASS_ADMIN:1, TEACHER:2, ADMIN:3, SUPER_USER:4 };
+const ROLE_LEVEL = { STUDENT:0, PARENT:0, STAFF:1, CLASS_ADMIN:1, TEACHER:2, ADMIN:3, SUPER_USER:4 };
 const ROLE_META  = {
   STUDENT:     { label:'นักเรียน',        icon:'🎒', color:'#0ea5e9', bg:'rgba(14,165,233,0.15)',  border:'rgba(14,165,233,0.3)'  },
+  PARENT:      { label:'ผู้ปกครอง',       icon:'👨‍👩‍👧', color:'#f97316', bg:'rgba(249,115,22,0.15)', border:'rgba(249,115,22,0.3)' },
+  STAFF:       { label:'ทีมงาน',          icon:'🧑‍💼', color:'#8b5cf6', bg:'rgba(139,92,246,0.15)', border:'rgba(139,92,246,0.3)' },
   CLASS_ADMIN: { label:'ประธานนักเรียน',  icon:'📋', color:'#10b981', bg:'rgba(16,185,129,0.15)', border:'rgba(16,185,129,0.3)' },
   TEACHER:     { label:'ครู',             icon:'👩‍🏫', color:'#7c3aed', bg:'rgba(124,58,237,0.15)', border:'rgba(124,58,237,0.3)' },
   ADMIN:       { label:'Admin',           icon:'🛡️',  color:'#f59e0b', bg:'rgba(245,158,11,0.15)', border:'rgba(245,158,11,0.3)' },
   SUPER_USER:  { label:'Super User',      icon:'👑',  color:'#ef4444', bg:'rgba(239,68,68,0.15)',  border:'rgba(239,68,68,0.3)'  },
 };
 
-const ALL_ROLES   = ['STUDENT','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'];
+const ALL_ROLES   = ['STUDENT','PARENT','STAFF','CLASS_ADMIN','TEACHER','ADMIN','SUPER_USER'];
 const MENU_DEFS   = [
   { key:'assignments',    icon:'📚', label:'การบ้าน'       },
   { key:'calendar',       icon:'📅', label:'ปฏิทิน'        },

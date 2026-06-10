@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 
-const ROLE_LEVEL = { STUDENT:0, CLASS_ADMIN:1, TEACHER:2, ADMIN:3, SUPER_USER:4 };
+const ROLE_LEVEL = { STUDENT:0, PARENT:0, STAFF:1, CLASS_ADMIN:1, TEACHER:2, ADMIN:3, SUPER_USER:4 };
 const DAYS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
 const MONTHS_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
   'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
