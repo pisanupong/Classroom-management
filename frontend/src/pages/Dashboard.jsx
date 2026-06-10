@@ -224,23 +224,30 @@ const Dashboard = () => {
 
   // Check LINE link status + handle callback result
   useEffect(() => {
-    api.get('/line/status').then(r => setLineLinked(r.data.linked)).catch(() => {});
-    const params = new URLSearchParams(window.location.search);
-    const lineResult = params.get('line');
-    if (lineResult === 'success') { setLineLinked(true); setLineMsg('✅ ผูก LINE สำเร็จ!'); window.history.replaceState({}, '', '/dashboard'); setTimeout(() => setLineMsg(''), 4000); }
-    if (lineResult === 'error')   { setLineMsg('❌ ผูก LINE ไม่สำเร็จ'); window.history.replaceState({}, '', '/dashboard'); setTimeout(() => setLineMsg(''), 4000); }
+    try {
+      api.get('/line/status').then(r => setLineLinked(r.data.linked)).catch(() => {});
+      const params = new URLSearchParams(window.location.search);
+      const lineResult = params.get('line');
+      if (lineResult === 'success') { setLineLinked(true); setLineMsg('✅ ผูก LINE สำเร็จ!'); window.history.replaceState({}, '', '/dashboard'); setTimeout(() => setLineMsg(''), 4000); }
+      if (lineResult === 'error')   { setLineMsg('❌ ผูก LINE ไม่สำเร็จ'); window.history.replaceState({}, '', '/dashboard'); setTimeout(() => setLineMsg(''), 4000); }
+    } catch {}
   }, []);
 
   const handleLineLink = () => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    window.location.href = `${import.meta.env.VITE_API_URL || 'http://72.62.67.40:5000/api'}/line/auth?token=${token}`;
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://72.62.67.40:5000/api').replace(/\/$/, '');
+      window.location.href = `${apiUrl}/line/auth?token=${token}`;
+    } catch {}
   };
 
   const handleLineUnlink = async () => {
-    await api.delete('/line/unlink');
-    setLineLinked(false);
-    setLineMsg('ยกเลิกการผูก LINE แล้ว');
-    setTimeout(() => setLineMsg(''), 3000);
+    try {
+      await api.delete('/line/unlink');
+      setLineLinked(false);
+      setLineMsg('ยกเลิกการผูก LINE แล้ว');
+      setTimeout(() => setLineMsg(''), 3000);
+    } catch {}
   };
 
   const fetchDashboard = useCallback(async () => {
