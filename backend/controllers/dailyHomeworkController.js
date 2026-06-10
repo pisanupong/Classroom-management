@@ -54,9 +54,12 @@ const createHomework = async (req, res) => {
       },
     });
 
-    // LINE notify ผู้สร้าง (ถ้ามี line_user_id)
-    const creator = await prisma.user.findUnique({ where: { id: req.user.id }, select: { line_user_id: true } });
-    if (creator?.line_user_id) notifyNewHomework(creator.line_user_id, item);
+    // LINE notify ทุกคนที่ผูก LINE
+    const usersWithLine = await prisma.user.findMany({
+      where: { line_user_id: { not: null } },
+      select: { line_user_id: true },
+    });
+    usersWithLine.forEach(u => notifyNewHomework(u.line_user_id, item));
 
     res.status(201).json(item);
   } catch (error) {
