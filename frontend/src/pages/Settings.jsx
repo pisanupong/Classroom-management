@@ -253,6 +253,20 @@ const downloadTemplate = () => {
   URL.revokeObjectURL(url);
 };
 
+/* export users as CSV */
+const exportUsersCSV = (users) => {
+  const header = ['username','name','role','student_number','total_points'];
+  const rows = users.map(u => [
+    u.username, u.name, u.role, u.student_number||'', u.total_points
+  ]);
+  const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `users_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+};
+
 /* ══════════════════ TAB 1: USER MANAGEMENT ══════════════════ */
 const TabUsers = ({ actorRole }) => {
   const navigate = useNavigate();
@@ -340,6 +354,11 @@ const TabUsers = ({ actorRole }) => {
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-[1.02]"
           style={{ background:'linear-gradient(135deg,#059669,#0d9488)', color:'#fff' }}>
           📥 Import Excel
+        </button>
+        <button onClick={()=>exportUsersCSV(users)} disabled={users.length===0}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-[1.02] disabled:opacity-40"
+          style={{ background:'linear-gradient(135deg,#0284c7,#0ea5e9)', color:'#fff' }}>
+          📤 Export Excel
         </button>
       </div>
 
@@ -549,22 +568,42 @@ const EditUserModal = ({ target, actorLevel, onClose, onSave }) => {
 };
 
 /* ══════════════════ TAB 2: MENU PERMISSIONS ══════════════════ */
+// perms[menuKey] = { view: [roles...], edit: [roles...] }
+// cell states: 'none' → 'view' → 'edit' → 'none'
+const getState = (perms, menuKey, role) => {
+  const p = perms[menuKey] || {};
+  if ((p.edit || []).includes(role)) return 'edit';
+  if ((p.view || []).includes(role)) return 'view';
+  return 'none';
+};
+
+const cycleState = (perms, menuKey, role) => {
+  const cur = getState(perms, menuKey, role);
+  const next = cur === 'none' ? 'view' : cur === 'view' ? 'edit' : 'none';
+  const p = { view: [...(perms[menuKey]?.view || [])], edit: [...(perms[menuKey]?.edit || [])] };
+  p.view = p.view.filter(r => r !== role);
+  p.edit = p.edit.filter(r => r !== role);
+  if (next === 'view') p.view.push(role);
+  if (next === 'edit') p.edit.push(role);
+  return { ...perms, [menuKey]: p };
+};
+
 const TabPermissions = ({ settings, onSaved }) => {
-  const [perms, setPerms] = useState(settings.menuPermissions || {});
+  const raw = settings.menuPermissions || {};
+  // migrate old format (array) → new format ({ view, edit })
+  const migrate = (p) => {
+    const out = {};
+    Object.keys(p).forEach(k => {
+      if (Array.isArray(p[k])) out[k] = { view: p[k], edit: [] };
+      else out[k] = p[k];
+    });
+    return out;
+  };
+  const [perms, setPerms] = useState(migrate(raw));
   const [saving, setSaving] = useState(false);
   const [msg, setMsg]       = useState('');
 
-  useEffect(() => { setPerms(settings.menuPermissions || {}); }, [settings]);
-
-  const toggle = (menuKey, role) => {
-    setPerms(prev => {
-      const current = prev[menuKey] || [];
-      const next = current.includes(role)
-        ? current.filter(r => r !== role)
-        : [...current, role];
-      return { ...prev, [menuKey]: next };
-    });
-  };
+  useEffect(() => { setPerms(migrate(settings.menuPermissions || {})); }, [settings]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -577,11 +616,28 @@ const TabPermissions = ({ settings, onSaved }) => {
     finally { setSaving(false); }
   };
 
+  const STATE_META = {
+    none: { icon:'×', bg:'rgba(255,255,255,0.05)', border:'transparent', color:'rgba(255,255,255,0.2)', label:'ไม่มีสิทธิ์' },
+    view: { icon:'👁', bg:'rgba(14,165,233,0.15)', border:'rgba(14,165,233,0.4)', color:'#38bdf8', label:'ดูได้' },
+    edit: { icon:'✓', bg:'rgba(16,185,129,0.15)', border:'rgba(16,185,129,0.4)', color:'#34d399', label:'แก้ไขได้' },
+  };
+
   return (
     <div className="space-y-4">
-      <p className="text-sm" style={{ color:'rgba(255,255,255,0.5)' }}>
-        กำหนดว่า role ใดสามารถเห็นเมนูไหนบน Dashboard ได้
-      </p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="text-sm" style={{ color:'rgba(255,255,255,0.5)' }}>
+          กำหนดสิทธิ์การเข้าถึงเมนูของแต่ละ Role
+        </p>
+        <div className="flex items-center gap-3 text-xs" style={{ color:'rgba(255,255,255,0.4)' }}>
+          {Object.entries(STATE_META).map(([k,v]) => (
+            <span key={k} className="flex items-center gap-1 px-2 py-1 rounded-lg"
+              style={{ background:v.bg, border:`1px solid ${v.border}`, color:v.color }}>
+              {v.icon} {v.label}
+            </span>
+          ))}
+          <span className="ml-1 text-white/30">กดเพื่อสลับ</span>
+        </div>
+      </div>
 
       {msg && (
         <div className={`p-3 rounded-xl text-sm border ${msg.includes('❌')?'bg-red-500/10 border-red-500/30 text-red-300':'bg-green-500/10 border-green-500/30 text-green-300'}`}>
@@ -589,55 +645,42 @@ const TabPermissions = ({ settings, onSaved }) => {
         </div>
       )}
 
-      {/* Header row */}
+      {/* Matrix */}
       <div className="rounded-2xl overflow-hidden" style={{ border:'1px solid rgba(255,255,255,0.08)' }}>
         <div className="grid px-4 py-3 text-xs font-medium uppercase tracking-wide"
-          style={{ gridTemplateColumns:'1fr repeat(5,56px)', borderBottom:'1px solid rgba(255,255,255,0.08)', background:'rgba(255,255,255,0.05)', color:'rgba(255,255,255,0.4)' }}>
+          style={{ gridTemplateColumns:'1fr repeat(5,64px)', borderBottom:'1px solid rgba(255,255,255,0.08)', background:'rgba(255,255,255,0.05)', color:'rgba(255,255,255,0.4)' }}>
           <div>เมนู</div>
           {ALL_ROLES.map(r => (
-            <div key={r} className="text-center" style={{ color:ROLE_META[r].color }}>{ROLE_META[r].icon}</div>
+            <div key={r} className="text-center" style={{ color:ROLE_META[r].color }}>
+              <div>{ROLE_META[r].icon}</div>
+              <div className="text-[10px] mt-0.5 truncate">{ROLE_META[r].label}</div>
+            </div>
           ))}
         </div>
 
-        {MENU_DEFS.map((menu, idx) => {
-          const rolePerm = perms[menu.key] || [];
-          return (
-            <div key={menu.key}
-              className="grid px-4 py-3 items-center hover:bg-white/5 transition-colors"
-              style={{ gridTemplateColumns:'1fr repeat(5,56px)', borderTop: idx===0?'none':'1px solid rgba(255,255,255,0.04)' }}>
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg">{menu.icon}</span>
-                <span className="text-sm font-medium text-white">{menu.label}</span>
-              </div>
-              {ALL_ROLES.map(role => {
-                const active = rolePerm.includes(role);
-                const m = ROLE_META[role];
-                return (
-                  <div key={role} className="flex justify-center">
-                    <button onClick={() => toggle(menu.key, role)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all hover:scale-110"
-                      style={{
-                        background: active ? m.bg : 'rgba(255,255,255,0.05)',
-                        border: `2px solid ${active ? m.border : 'transparent'}`,
-                        color: active ? m.color : 'rgba(255,255,255,0.2)',
-                      }}
-                      title={`${active?'ซ่อน':'แสดง'} ${menu.label} สำหรับ ${m.label}`}>
-                      {active ? '✓' : '×'}
-                    </button>
-                  </div>
-                );
-              })}
+        {MENU_DEFS.map((menu, idx) => (
+          <div key={menu.key}
+            className="grid px-4 py-3 items-center hover:bg-white/5 transition-colors"
+            style={{ gridTemplateColumns:'1fr repeat(5,64px)', borderTop: idx===0?'none':'1px solid rgba(255,255,255,0.04)' }}>
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">{menu.icon}</span>
+              <span className="text-sm font-medium text-white">{menu.label}</span>
             </div>
-          );
-        })}
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3 text-xs" style={{ color:'rgba(255,255,255,0.4)' }}>
-        {ALL_ROLES.map(r => (
-          <span key={r} className="flex items-center gap-1.5">
-            <span style={{ color:ROLE_META[r].color }}>{ROLE_META[r].icon}</span> {ROLE_META[r].label}
-          </span>
+            {ALL_ROLES.map(role => {
+              const state = getState(perms, menu.key, role);
+              const sm = STATE_META[state];
+              return (
+                <div key={role} className="flex justify-center">
+                  <button onClick={() => setPerms(p => cycleState(p, menu.key, role))}
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all hover:scale-110"
+                    style={{ background:sm.bg, border:`2px solid ${sm.border}`, color:sm.color }}
+                    title={`${sm.label} — กดเพื่อสลับ`}>
+                    {sm.icon}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         ))}
       </div>
 
