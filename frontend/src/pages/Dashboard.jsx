@@ -221,6 +221,7 @@ const Dashboard = () => {
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [lineLinked, setLineLinked] = useState(false);
   const [lineMsg, setLineMsg] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Check LINE link status + handle callback result
   useEffect(() => {
@@ -306,11 +307,11 @@ const Dashboard = () => {
         {/* Logo */}
         <div className="flex items-center gap-2.5 pr-4 border-r border-white/10 flex-shrink-0">
           <span className="text-2xl">🏫</span>
-          <span className="font-extrabold text-white text-base tracking-wide hidden sm:block">Classroom</span>
+          <span className="font-extrabold text-white text-base tracking-wide hidden md:block">Classroom</span>
         </div>
 
-        {/* Nav — scrollable on small screens */}
-        <div className="flex items-stretch gap-0 overflow-x-auto flex-1 px-2 scrollbar-hide">
+        {/* Nav — desktop: scrollable tabs, mobile: hidden */}
+        <div className="hidden md:flex items-stretch gap-0 overflow-x-auto flex-1 px-2 scrollbar-hide">
           {NAV_ITEMS.map(n => (
             <button key={n.path} onClick={() => navigate(n.path)}
               className="flex items-center gap-1.5 px-3 py-0 text-sm font-medium whitespace-nowrap transition-all border-b-2 border-transparent hover:border-purple-400 hover:text-white flex-shrink-0"
@@ -323,13 +324,24 @@ const Dashboard = () => {
           ))}
         </div>
 
+        {/* Mobile: hamburger button */}
+        <button onClick={() => setMobileMenuOpen(v => !v)}
+          className="md:hidden flex items-center justify-center w-10 h-10 rounded-xl mx-2 text-white/60 hover:text-white hover:bg-white/10 transition-all flex-shrink-0"
+          aria-label="เมนู">
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {mobileMenuOpen
+              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
+          </svg>
+        </button>
+
         {/* User */}
         <div className="flex items-center gap-3 pl-4 border-l border-white/10 flex-shrink-0">
           <button onClick={() => setShowChangePwd(true)}
             className="flex items-center gap-2.5 hover:bg-white/5 rounded-xl px-2 py-1 transition-all group"
             title="คลิกเพื่อเปลี่ยนรหัสผ่าน">
             <Avatar name={user?.name} role={user?.role} size={36} online />
-            <div className="hidden sm:block text-left">
+            <div className="hidden md:block text-left">
               <p className="text-sm font-semibold text-white leading-none group-hover:text-purple-300 transition-colors">{user?.name}</p>
               <p className="text-xs leading-none mt-1 font-medium" style={{ color: rm.color }}>
                 {rm.icon} {rm.label}
@@ -351,6 +363,46 @@ const Dashboard = () => {
           </button>
         </div>
       </nav>
+
+      {/* ── Mobile Menu Drawer ── */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-40" onClick={() => setMobileMenuOpen(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="absolute top-14 left-0 right-0 border-b border-white/10 shadow-2xl"
+            style={{ background: 'rgba(15,12,41,0.98)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 grid grid-cols-3 gap-2">
+              {NAV_ITEMS.map(n => (
+                <button key={n.path}
+                  onClick={() => { navigate(n.path); setMobileMenuOpen(false); }}
+                  className="flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 transition-all"
+                  style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <span className="text-2xl">{n.icon}</span>
+                  <span className="text-xs text-white/70 font-medium text-center leading-tight">{n.label}</span>
+                </button>
+              ))}
+            </div>
+            {/* LINE + logout */}
+            <div className="px-4 pb-4 flex gap-2">
+              <button onClick={() => { lineLinked ? handleLineUnlink() : handleLineLink(); setMobileMenuOpen(false); }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all"
+                style={lineLinked
+                  ? { background:'rgba(6,214,160,0.15)', color:'#06d6a0', borderColor:'rgba(6,214,160,0.3)' }
+                  : { background:'rgba(255,255,255,0.05)', color:'rgba(255,255,255,0.5)', borderColor:'rgba(255,255,255,0.1)' }}>
+                {lineLinked ? '💚 ยกเลิก LINE' : '🔗 ผูก LINE'}
+              </button>
+              <button onClick={() => { setShowChangePwd(true); setMobileMenuOpen(false); }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-white/10 text-white/50 hover:bg-white/5 transition-all">
+                🔑 เปลี่ยนรหัสผ่าน
+              </button>
+              <button onClick={logout}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all">
+                ออกจากระบบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Body ── */}
       <div className="max-w-7xl mx-auto px-4 py-5">
