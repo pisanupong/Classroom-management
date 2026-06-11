@@ -422,14 +422,9 @@ const TabUsers = ({ actorRole }) => {
                 <div className="col-span-1 text-center text-sm font-bold" style={{ color:'#34d399' }}>{u.total_points}</div>
                 <div className="col-span-2 flex justify-end gap-1.5">
                   {canManage ? (
-                    <>
-                      <button onClick={()=>setEditTarget(u)}
-                        className="px-2.5 py-1.5 rounded-lg text-xs border transition-all hover:border-white/30"
-                        style={{ color:'rgba(255,255,255,0.5)', borderColor:'rgba(255,255,255,0.1)' }}>✏️</button>
-                      <button onClick={()=>setDeleteConfirm(u)}
-                        className="px-2.5 py-1.5 rounded-lg text-xs border transition-all"
-                        style={{ color:'rgba(239,68,68,0.5)', borderColor:'rgba(239,68,68,0.15)' }}>🗑️</button>
-                    </>
+                    <button onClick={()=>setEditTarget(u)}
+                      className="px-2.5 py-1.5 rounded-lg text-xs border transition-all hover:border-white/30"
+                      style={{ color:'rgba(255,255,255,0.5)', borderColor:'rgba(255,255,255,0.1)' }}>✏️</button>
                   ) : <span className="text-xs italic" style={{ color:'rgba(255,255,255,0.2)' }}>—</span>}
                 </div>
               </div>
@@ -455,36 +450,13 @@ const TabUsers = ({ actorRole }) => {
           onClose={()=>setEditTarget(null)} onSave={handleUpdate}/>
       )}
 
-      {/* Delete Confirm */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background:'rgba(0,0,0,0.8)', backdropFilter:'blur(4px)' }}>
-          <div className="w-full max-w-sm rounded-3xl p-6 border text-white"
-            style={{ background:'rgba(15,28,60,0.98)', borderColor:'rgba(255,255,255,0.1)' }}>
-            <p className="text-4xl text-center mb-3">⚠️</p>
-            <h3 className="text-center font-bold text-lg mb-1">ยืนยันการลบ</h3>
-            <p className="text-center text-sm mb-5" style={{ color:'rgba(255,255,255,0.5)' }}>
-              ลบ <span className="text-white font-medium">{deleteConfirm.name}</span>?
-            </p>
-            <div className="flex gap-3">
-              <button onClick={()=>setDeleteConfirm(null)} disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl text-sm border border-white/10 text-white/50 hover:text-white">ยกเลิก</button>
-              <button onClick={()=>handleDelete(deleteConfirm.id)} disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-50"
-                style={{ background:'linear-gradient(135deg,#ef4444,#b91c1c)' }}>
-                {deleting?'กำลังลบ...':'🗑️ ลบเลย'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
 const EditUserModal = ({ target, actorLevel, onClose, onSave }) => {
   const assignableRoles = Object.keys(ROLE_META).filter(r=>ROLE_LEVEL[r]<actorLevel);
-  const [form, setForm] = useState({ name:target.name, role:target.role, student_number:target.student_number||'', password:'' });
+  const [form, setForm] = useState({ name:target.name, role:target.role, student_number:target.student_number||'', password: target.role === 'PARENT' ? 'acp123' : '' });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
 

@@ -29,7 +29,7 @@ const EditModal = ({ target, actorRole, onClose, onSave }) => {
     name: target.name,
     role: target.role,
     student_number: target.student_number || '',
-    password: '',
+    password: target.role === 'PARENT' ? 'acp123' : '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -147,8 +147,7 @@ const UserManagement = () => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [editTarget, setEditTarget] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // unused but kept for state compat
   const [msg, setMsg] = useState({ text: '', type: 'ok' });
 
   useEffect(() => {
@@ -309,10 +308,6 @@ const UserManagement = () => {
                           className="px-2.5 py-1.5 rounded-lg text-xs text-white/60 hover:text-white border border-white/10 hover:border-white/30 transition-all">
                           ✏️
                         </button>
-                        <button onClick={() => setDeleteConfirm(u)}
-                          className="px-2.5 py-1.5 rounded-lg text-xs text-red-400/50 hover:text-red-400 border border-red-400/10 hover:border-red-400/30 transition-all">
-                          🗑️
-                        </button>
                       </>
                     ) : (
                       <span className="text-xs text-white/20 italic">
@@ -344,32 +339,6 @@ const UserManagement = () => {
           onClose={() => setEditTarget(null)} onSave={handleUpdate} />
       )}
 
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}>
-          <div className="w-full max-w-sm rounded-3xl p-6 border border-white/10 text-white"
-            style={{ background: 'rgba(15,28,60,0.98)' }}>
-            <p className="text-4xl text-center mb-3">⚠️</p>
-            <h3 className="text-center font-bold text-lg mb-1">ยืนยันการลบ</h3>
-            <p className="text-center text-white/50 text-sm mb-2">
-              ลบ <span className="text-white font-medium">{deleteConfirm.name}</span>?
-            </p>
-            <div className="flex justify-center mb-5"><RoleBadge role={deleteConfirm.role} /></div>
-            <p className="text-center text-red-400/60 text-xs mb-5">ข้อมูลทั้งหมดของผู้ใช้จะถูกลบ</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteConfirm(null)} disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/50 hover:text-white text-sm transition-colors">
-                ยกเลิก
-              </button>
-              <button onClick={() => handleDelete(deleteConfirm.id)} disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl font-medium text-white text-sm disabled:opacity-50 hover:scale-[1.02] transition-all"
-                style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}>
-                {deleting ? 'กำลังลบ...' : '🗑️ ลบเลย'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
