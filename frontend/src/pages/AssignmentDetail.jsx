@@ -303,59 +303,87 @@ const AssignmentDetail = () => {
           </div>
         )}
 
-        {/* TEACHER: Submissions Section */}
-        {isTeacher && (
-          <div className="rounded-2xl p-5 border"
-            style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(14px)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-white text-sm">งานที่ส่งมา</h3>
-              <span className="text-xs px-2 py-1 rounded-full"
-                style={{ background: 'rgba(124,58,237,0.2)', color: '#c4b5fd' }}>
-                {assignment.submissions?.length || 0} คน
+        {/* Submissions Section — ทุก role เห็น */}
+        <div className="rounded-2xl border overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(14px)' }}>
+
+          <div className="px-5 py-4 border-b flex items-center justify-between"
+            style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+            <h3 className="font-semibold text-white text-sm">👥 งานที่ส่งมา</h3>
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-24 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                <div className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${assignment.totalStudents > 0 ? Math.round((assignment.submissions?.length / assignment.totalStudents) * 100) : 0}%`,
+                    background: 'linear-gradient(90deg,#7c3aed,#db2777)',
+                  }}/>
+              </div>
+              <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                {assignment.submissions?.length || 0}/{assignment.totalStudents || 0} คน
               </span>
             </div>
+          </div>
+
+          <div className="p-5">
             {!assignment.submissions?.length ? (
-              <p className="text-center py-6 text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>ยังไม่มีนักเรียนส่งงาน</p>
+              <p className="text-center py-4 text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>ยังไม่มีนักเรียนส่งงาน</p>
             ) : (
               <div className="space-y-2">
                 {assignment.submissions.map((sub) => (
-                  <div key={sub.id} className="flex items-center justify-between p-4 rounded-xl"
+                  <div key={sub.id} className="flex items-center justify-between p-3 rounded-xl"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div>
-                      <p className="font-medium text-white text-sm">{sub.student?.name}</p>
-                      {sub.student?.student_number && (
-                        <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>{sub.student.student_number}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        <StatusBadge status={sub.status} />
-                        {sub.status === 'GRADED' && (
-                          <span className="text-sm font-bold" style={{ color: '#34d399' }}>
-                            {sub.score_given}/{assignment.max_score}
-                          </span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
+                        style={{ background: 'rgba(16,185,129,0.2)', color: '#6ee7b7' }}>
+                        {(sub.student?.name || '?').charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-white text-sm">{sub.student?.name}</p>
+                        {sub.student?.student_number && (
+                          <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                            {sub.student.student_number}
+                          </p>
                         )}
                       </div>
                     </div>
-                    {sub.status === 'PENDING' && user?.role === 'TEACHER' && (
-                      <div className="flex items-center gap-2">
-                        <input type="number" min="0" max={assignment.max_score}
-                          placeholder={`0-${assignment.max_score}`}
-                          value={gradeInputs[sub.id] || ''}
-                          onChange={(e) => setGradeInputs({ ...gradeInputs, [sub.id]: e.target.value })}
-                          className="w-20 px-3 py-2 rounded-lg text-white text-sm focus:outline-none focus:border-purple-400"
-                          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}/>
-                        <button onClick={() => handleGrade(sub.id)} disabled={gradingId === sub.id}
-                          className="px-3 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 hover:scale-105 transition-all"
-                          style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
-                          {gradingId === sub.id ? '...' : 'ให้คะแนน'}
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {isTeacher ? (
+                        <>
+                          <StatusBadge status={sub.status} />
+                          {sub.status === 'GRADED' && (
+                            <span className="text-sm font-bold" style={{ color: '#34d399' }}>
+                              {sub.score_given}/{assignment.max_score}
+                            </span>
+                          )}
+                          {sub.status === 'PENDING' && user?.role === 'TEACHER' && (
+                            <div className="flex items-center gap-1.5">
+                              <input type="number" min="0" max={assignment.max_score}
+                                placeholder={`0-${assignment.max_score}`}
+                                value={gradeInputs[sub.id] || ''}
+                                onChange={(e) => setGradeInputs({ ...gradeInputs, [sub.id]: e.target.value })}
+                                className="w-20 px-2 py-1.5 rounded-lg text-white text-sm focus:outline-none"
+                                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}/>
+                              <button onClick={() => handleGrade(sub.id)} disabled={gradingId === sub.id}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50 hover:scale-105 transition-all"
+                                style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+                                {gradingId === sub.id ? '...' : 'ให้คะแนน'}
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-xs px-2 py-1 rounded-full"
+                          style={{ background: 'rgba(16,185,129,0.15)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.25)' }}>
+                          ✅ ส่งแล้ว
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        )}
+        </div>
 
         {/* ── Comment Section ── */}
         <div className="rounded-2xl border overflow-hidden"

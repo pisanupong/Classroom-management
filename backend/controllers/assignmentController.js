@@ -69,25 +69,36 @@ const getAssignments = async (req, res) => {
 // @access  Private
 const getAssignmentById = async (req, res) => {
   try {
-    const assignment = await prisma.assignment.findUnique({
-      where: { id: parseInt(req.params.id) },
-      include: {
-        teacher: { select: { id: true, name: true } },
-        submissions: req.user.role === 'TEACHER'
-          ? {
-              include: {
-                student: { select: { id: true, name: true, student_number: true } },
-              },
-            }
-          : { where: { student_id: req.user.id } },
-      },
-    });
+    const isTeacherUp = ROLE_LEVEL[req.user.role] >= ROLE_LEVEL['CLASS_ADMIN'];
+
+    const [assignment, totalStudents] = await Promise.all([
+      prisma.assignment.findUnique({
+        where: { id: parseInt(req.params.id) },
+        include: {
+          teacher: { select: { id: true, name: true } },
+          submissions: {
+            include: { student: { select: { id: true, name: true, student_number: true } } },
+            orderBy: { submitted_at: 'asc' },
+          },
+        },
+      }),
+      prisma.user.count({ where: { role: 'STUDENT' } }),
+    ]);
 
     if (!assignment) {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    res.json(assignment);
+    // ถ้าไม่ใช่ teacher ซ่อน score ของคนอื่น แต่ยังแสดงรายชื่อ
+    const submissionsView = isTeacherUp
+      ? assignment.submissions
+      : assignment.submissions.map(s => ({
+          ...s,
+          score_given: s.student_id === req.user.id ? s.score_given : undefined,
+          status: s.student_id === req.user.id ? s.status : 'SUBMITTED',
+        }));
+
+    res.json({ ...assignment, submissions: submissionsView, totalStudents });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
