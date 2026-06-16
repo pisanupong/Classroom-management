@@ -72,6 +72,7 @@ model User {
   homework_submissions  HomeworkSubmission[]
   homework_reads        HomeworkRead[]
   subjects              Subject[]       @relation("SubjectTeacher")
+  assignment_comments AssignmentComment[]
   vocab_words    VocabWord[]     @relation("VocabCreator")
   challenged     VocabBattle[]   @relation("BattleChallenger")
   opponent_in    VocabBattle[]   @relation("BattleOpponent")
@@ -113,6 +114,18 @@ model Assignment {
   teacher     User      @relation(fields: [created_by], references: [id])
   subject     Subject?  @relation(fields: [subject_id], references: [id])
   submissions Submission[]
+  comments    AssignmentComment[]
+}
+
+model AssignmentComment {
+  id            Int      @id @default(autoincrement())
+  assignment_id Int
+  user_id       Int
+  content       String
+  created_at    DateTime @default(now())
+
+  assignment    Assignment @relation(fields: [assignment_id], references: [id])
+  user          User       @relation(fields: [user_id], references: [id])
 }
 
 model Submission {
