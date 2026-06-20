@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../config/db');
-const { authenticate } = require('../middleware/authMiddleware');
+const { protect: authenticate } = require('../middleware/authMiddleware');
 const https = require('https');
 
 // Simple in-memory cache for dictionary lookups
