@@ -399,12 +399,14 @@ model PetWord {
 }
 
 model PetState {
-  id         Int      @id @default(autoincrement())
-  user_id    Int      @unique
-  hunger     Float    @default(60)
-  pet_name   String   @default("น้องฟัฟฟี่")
-  total_words Int     @default(0)
-  updated_at DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  user_id     Int      @unique
+  hunger      Float    @default(60)
+  pet_name    String   @default("น้องฟัฟฟี่")
+  pet_type    String   @default("CAT")
+  xp          Int      @default(0)
+  total_words Int      @default(0)
+  updated_at  DateTime @updatedAt
 
-  user       User     @relation(fields: [user_id], references: [id])
+  user        User     @relation(fields: [user_id], references: [id])
 }
