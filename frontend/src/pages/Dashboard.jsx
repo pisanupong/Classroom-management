@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
@@ -222,6 +222,8 @@ const Dashboard = () => {
   const [lineLinked, setLineLinked] = useState(false);
   const [lineMsg, setLineMsg] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navScrollRef = useRef(null);
+  const scrollNav = (dir) => navScrollRef.current?.scrollBy({ left: dir * 160, behavior: 'smooth' });
 
   // Check LINE link status + handle callback result
   useEffect(() => {
@@ -312,17 +314,25 @@ const Dashboard = () => {
         </div>
 
         {/* Nav — desktop: scrollable tabs, mobile: hidden */}
-        <div className="hidden md:flex items-stretch gap-0 overflow-x-auto flex-1 px-2 scrollbar-hide">
-          {NAV_ITEMS.map(n => (
-            <button key={n.path} onClick={() => navigate(n.path)}
-              className="flex items-center gap-1.5 px-3 py-0 text-sm font-medium whitespace-nowrap transition-all border-b-2 border-transparent hover:border-purple-400 hover:text-white flex-shrink-0"
-              style={{ color: 'rgba(255,255,255,0.65)' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.65)'}>
-              <span className="text-base">{n.icon}</span>
-              <span>{n.label}</span>
-            </button>
-          ))}
+        <div className="hidden md:flex items-stretch flex-1 min-w-0 relative">
+          <button onClick={() => scrollNav(-1)}
+            className="flex-shrink-0 px-1 text-white/30 hover:text-white/80 transition-colors"
+            style={{ fontSize: 16 }}>‹</button>
+          <div ref={navScrollRef} className="flex items-stretch gap-0 overflow-x-auto flex-1 px-1 scrollbar-hide">
+            {NAV_ITEMS.map(n => (
+              <button key={n.path} onClick={() => navigate(n.path)}
+                className="flex items-center gap-1.5 px-3 py-0 text-sm font-medium whitespace-nowrap transition-all border-b-2 border-transparent hover:border-purple-400 hover:text-white flex-shrink-0"
+                style={{ color: 'rgba(255,255,255,0.65)' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.65)'}>
+                <span className="text-base">{n.icon}</span>
+                <span>{n.label}</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => scrollNav(1)}
+            className="flex-shrink-0 px-1 text-white/30 hover:text-white/80 transition-colors"
+            style={{ fontSize: 16 }}>›</button>
         </div>
 
         {/* Mobile: hamburger button */}

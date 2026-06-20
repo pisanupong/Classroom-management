@@ -220,12 +220,15 @@ const BattleGame = () => {
       setRoundResult(null);
       setMyState('idle');
       setOppState('idle');
-      // Timer: 15 seconds per question
-      setTimeLeft(15);
+      // Timer: 10 seconds per question
+      setTimeLeft(10);
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setTimeLeft(t => {
-          if (t <= 1) { clearInterval(timerRef.current); return 0; }
+          if (t <= 1) {
+            clearInterval(timerRef.current);
+            return 0;
+          }
           return t - 1;
         });
       }, 1000);
@@ -257,6 +260,14 @@ const BattleGame = () => {
 
       setTimeout(() => setDmgFloat(null), 1200);
       setTimeout(() => { setMyState('idle'); setOppState('idle'); }, 1000);
+    });
+
+    socket.on('battle:timeout_reveal', (data) => {
+      clearInterval(timerRef.current);
+      setRoundResult({ answer: data.answer, word: data.word, winnerId: null, timeout: true });
+      setFeedback({ timeout: true });
+      setMyState('idle');
+      setOppState('idle');
     });
 
     socket.on('battle:wrong', () => {
@@ -370,19 +381,16 @@ const BattleGame = () => {
         <div style={{padding:'12px 16px',background:'rgba(0,0,0,0.7)',backdropFilter:'blur(10px)',borderTop:'1px solid rgba(255,255,255,0.08)'}}>
           {phase==='fighting' && question && (
             <div style={{animation:'slideIn 0.3s ease-out'}}>
-              {/* Question type label */}
-              <div style={{fontFamily:'"Press Start 2P",monospace',fontSize:7,color:'#8060ff',textAlign:'center',marginBottom:6}}>
-                {question.questionType==='translate'?'📖 แปลคำศัพท์นี้':'🔤 คำใดมีความหมายว่า'}
-              </div>
-
               {/* The word */}
               <div style={{textAlign:'center',marginBottom:10}}>
                 <div style={{fontFamily:'"Press Start 2P",monospace',fontSize:22,color:'#ffe000',
-                  textShadow:'0 0 20px rgba(255,224,0,0.5)',marginBottom:4}}>
+                  textShadow:'0 0 20px rgba(255,224,0,0.5)',marginBottom:8}}>
                   {question.question}
                 </div>
                 {question.hint && (
-                  <div style={{fontFamily:'"Press Start 2P",monospace',fontSize:7,color:'#606080'}}>
+                  <div style={{fontFamily:'"Press Start 2P",monospace',fontSize:11,color:'#a78bfa',
+                    background:'rgba(167,139,250,0.1)',border:'1px solid rgba(167,139,250,0.3)',
+                    borderRadius:8,display:'inline-block',padding:'6px 14px'}}>
                     💡 {question.hint}
                   </div>
                 )}
@@ -393,10 +401,14 @@ const BattleGame = () => {
                 <div style={{
                   textAlign:'center',marginBottom:8,
                   fontFamily:'"Press Start 2P",monospace',fontSize:9,
-                  color: feedback?.correct ? '#10b981' : '#ef4444',
+                  color: roundResult.timeout ? '#f59e0b' : feedback?.correct ? '#10b981' : '#ef4444',
                   animation:'slideIn 0.2s ease-out',
                 }}>
-                  {feedback?.correct ? `✅ ถูก! คำตอบ: ${roundResult.answer}` : `❌ ${roundResult.winnerId!==user?.id?`${opponentName} ตอบถูก!`:''} คำตอบ: ${roundResult.answer}`}
+                  {roundResult.timeout
+                    ? `⏱ หมดเวลา! คำตอบ: ${roundResult.answer}`
+                    : feedback?.correct
+                      ? `✅ ถูก! คำตอบ: ${roundResult.answer}`
+                      : `❌ ${roundResult.winnerId!==user?.id?`${opponentName} ตอบถูก! `:''} คำตอบ: ${roundResult.answer}`}
                 </div>
               )}
 
