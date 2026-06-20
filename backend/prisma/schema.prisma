@@ -405,6 +405,7 @@ model PetState {
   pet_name    String   @default("น้องฟัฟฟี่")
   pet_type    String   @default("CAT")
   xp          Int      @default(0)
+  stage       String   @default("EGG")
   total_words Int      @default(0)
   updated_at  DateTime @updatedAt
 
