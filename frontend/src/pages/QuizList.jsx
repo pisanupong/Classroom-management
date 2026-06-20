@@ -96,6 +96,10 @@ const QuizList = () => {
                             className="px-3 py-1.5 rounded-lg text-xs border border-white/10 text-white/60 hover:text-white transition-all">
                             📊 อันดับ
                           </button>
+                          <button onClick={() => navigate(`/quiz/${q.id}/edit`)}
+                            className="px-3 py-1.5 rounded-lg text-xs border border-blue-500/20 text-blue-400/70 hover:text-blue-300 transition-all">
+                            ✏️ แก้ไข
+                          </button>
                           <button onClick={() => handleToggle(q.id)}
                             className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${q.is_active ? 'border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10' : 'border-green-500/30 text-green-400 hover:bg-green-500/10'}`}>
                             {q.is_active ? '⏸ ปิด' : '▶ เปิด'}

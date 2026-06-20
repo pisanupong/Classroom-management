@@ -18,6 +18,7 @@ import Chat from './pages/Chat';
 import TakeQuiz from './pages/TakeQuiz';
 import QuizResult from './pages/QuizResult';
 import CreateQuiz from './pages/CreateQuiz';
+import EditQuiz from './pages/EditQuiz';
 import Treasury from './pages/Treasury';
 import RewardStore from './pages/RewardStore';
 import VocabBattle from './pages/VocabBattle';
@@ -47,6 +48,7 @@ function App() {
             <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
             <Route path="/quiz" element={<ProtectedRoute><QuizList /></ProtectedRoute>} />
             <Route path="/quiz/create" element={<ProtectedRoute><CreateQuiz /></ProtectedRoute>} />
+            <Route path="/quiz/:id/edit" element={<ProtectedRoute><EditQuiz /></ProtectedRoute>} />
             <Route path="/quiz/:id/take" element={<ProtectedRoute><TakeQuiz /></ProtectedRoute>} />
             <Route path="/quiz/:id/result" element={<ProtectedRoute><QuizResult /></ProtectedRoute>} />
             <Route path="/quiz/:id/leaderboard" element={<ProtectedRoute><QuizResult /></ProtectedRoute>} />

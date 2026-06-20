@@ -251,4 +251,51 @@ const getMyAttempts = async (req, res) => {
   }
 };
 
-module.exports = { getQuizzes, getQuiz, createQuiz, toggleQuiz, deleteQuiz, submitQuiz, getQuizLeaderboard, getMyAttempts };
+// ── PUT /api/quiz/:id  (Teacher updates quiz) ─────────────────────────────
+const updateQuiz = async (req, res) => {
+  try {
+    const qid = parseInt(req.params.id);
+    const { title, description, time_limit, max_attempts, points_per_q, questions } = req.body;
+
+    const quiz = await prisma.quiz.findUnique({ where: { id: qid } });
+    if (!quiz) return res.status(404).json({ message: 'ไม่พบแบบฝึกหัด' });
+
+    if (!title) return res.status(400).json({ message: 'กรุณาใส่ชื่อแบบฝึกหัด' });
+    if (!questions?.length) return res.status(400).json({ message: 'กรุณาเพิ่มคำถามอย่างน้อย 1 ข้อ' });
+
+    for (const q of questions) {
+      if (!q.question_text) return res.status(400).json({ message: 'คำถามต้องมีเนื้อหา' });
+      if (!q.choices || q.choices.length < 2) return res.status(400).json({ message: 'ต้องมีตัวเลือกอย่างน้อย 2 ตัว' });
+      if (!q.correct_answer) return res.status(400).json({ message: 'ต้องระบุคำตอบที่ถูกต้อง' });
+      if (!q.choices.includes(q.correct_answer)) return res.status(400).json({ message: 'คำตอบที่ถูกต้องต้องอยู่ในตัวเลือก' });
+    }
+
+    await prisma.question.deleteMany({ where: { quiz_id: qid } });
+
+    const updated = await prisma.quiz.update({
+      where: { id: qid },
+      data: {
+        title,
+        description: description || null,
+        time_limit: time_limit ? parseInt(time_limit) : 600,
+        max_attempts: max_attempts !== undefined ? parseInt(max_attempts) : 1,
+        points_per_q: points_per_q ? parseInt(points_per_q) : 10,
+        questions: {
+          create: questions.map(q => ({
+            question_text: q.question_text,
+            choices: q.choices,
+            correct_answer: q.correct_answer,
+          })),
+        },
+      },
+      include: { questions: true, _count: { select: { questions: true } } },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getQuizzes, getQuiz, createQuiz, updateQuiz, toggleQuiz, deleteQuiz, submitQuiz, getQuizLeaderboard, getMyAttempts };
