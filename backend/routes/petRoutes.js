@@ -2,30 +2,6 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../config/db');
 const { protect: authenticate } = require('../middleware/authMiddleware');
-const https = require('https');
-
-// Simple in-memory cache for dictionary lookups
-const dictCache = new Map(); // word → { valid: bool, ts: Date }
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
-function checkDictionary(word) {
-  const lower = word.toLowerCase();
-  const cached = dictCache.get(lower);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    return Promise.resolve(cached.valid);
-  }
-  return new Promise((resolve) => {
-    const url = `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(lower)}`;
-    const req = https.get(url, { timeout: 4000 }, (res) => {
-      const valid = res.statusCode === 200;
-      dictCache.set(lower, { valid, ts: Date.now() });
-      resolve(valid);
-    });
-    req.on('error', () => resolve(null)); // null = cannot verify
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-  });
-}
-
 function isThai(word) {
   return /[฀-๿]/.test(word);
 }
@@ -55,24 +31,13 @@ router.post('/feed', authenticate, async (req, res) => {
       });
     }
 
-    // 2. Validate English word (skip Thai words)
-    let validationStatus = 'fed';
-    if (!isThai(trimmed)) {
-      const valid = await checkDictionary(trimmed);
-      if (valid === false) {
-        return res.json({ ok: false, status: 'invalid' });
-      }
-      if (valid === null) {
-        validationStatus = 'unverified'; // API timeout — accept but warn
-      }
-    }
-
-    // 3. Save word
+    // 2. Save word
     await prisma.petWord.create({
       data: { word: trimmed, used_by: req.user.id },
     });
 
     const pts = trimmed.length * 3;
+    let validationStatus = 'fed';
 
     // 4. Update pet state
     await prisma.petState.upsert({

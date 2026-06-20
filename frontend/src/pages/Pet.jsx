@@ -3,6 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 
+/* ─── Dictionary check (browser-side) ───────────────────────── */
+const dictCache = new Map();
+async function isValidEnglishWord(word) {
+  const lower = word.toLowerCase();
+  if (dictCache.has(lower)) return dictCache.get(lower);
+  try {
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(lower)}`);
+    const valid = res.status === 200;
+    dictCache.set(lower, valid);
+    return valid;
+  } catch {
+    return null; // network error → accept
+  }
+}
+function isThai(word) { return /[฀-๿]/.test(word); }
+
 /* ─── Constants ─────────────────────────────────────────────── */
 const MAX_HUNGER = 100;
 const HUNGER_DRAIN_PER_SEC = 0.5;
@@ -248,6 +264,20 @@ export default function Pet() {
     setStatus(null);
     setLoading(true);
     try {
+      // Validate English words in browser (Thai words skip)
+      if (!isThai(word)) {
+        const valid = await isValidEnglishWord(word);
+        if (valid === false) {
+          setStatus({ type: 'invalid' });
+          addFloat('ไม่ถูก ❌', '#ef4444');
+          setInput('');
+          setLoading(false);
+          inputRef.current?.focus();
+          return;
+        }
+        // null = network error → allow through
+      }
+
       const res = await api.post('/pet/feed', { word });
       const { ok, status: s, pts, usedBy } = res.data;
 
