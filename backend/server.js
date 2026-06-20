@@ -58,6 +58,7 @@ app.use('/api/subjects',       require('./routes/subjectRoutes'));
 app.use('/api/settings',      require('./routes/settingRoutes'));
 app.use('/api/upload',        require('./routes/uploadRoutes'));
 app.use('/api/line',          require('./routes/lineRoutes'));
+app.use('/api/pet',           require('./routes/petRoutes'));
 
 // Serve uploaded files as static assets
 const path = require('path');
@@ -88,7 +89,12 @@ const onlineUsers = new Map(); // socketId → user
 // ── VOCAB BATTLE state ────────────────────────────────────────────────────────
 const battleRooms = {}; // { battleId: { players:{socketId→userId}, ready:Set, combo:{userId:n}, questionIdx:n, words:[], answered:bool } }
 const shuffle = arr => { const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]; } return a; };
-const normalize = s => s?.toLowerCase().trim().replace(/\s+/g,' ');
+const normalize = s => {
+  if (!s) return '';
+  const base = s.toLowerCase().trim().replace(/\s+/g,' ');
+  // strip common English plural/verb suffixes for flexible matching
+  return base.replace(/ies$/, 'y').replace(/es$/, '').replace(/s$/, '');
+};
 
 io.on('connection', (socket) => {
   const user = socket.user;
@@ -157,7 +163,6 @@ io.on('connection', (socket) => {
       battleRooms[battleId] = { players: {}, ready: new Set(), combo: {}, questionIdx: 0, words: [], answered: false };
     }
     battleRooms[battleId].players[socket.id] = userId;
-    socket.to(room).emit('battle:player_joined', { userId });
 
     // Load words if not loaded
     const state = battleRooms[battleId];
@@ -176,11 +181,14 @@ io.on('connection', (socket) => {
       } catch(e) { console.error('battle:join error', e.message); }
     }
 
-    // When both players joined → start
+    // When both players joined → notify ALL and start
     const playerCount = Object.keys(state.players).length;
     if (playerCount >= 2 && !state.started) {
       state.started = true;
+      io.to(room).emit('battle:player_joined', { userId }); // notify both players
       setTimeout(() => sendQuestion(battleId), 1500);
+    } else {
+      socket.to(room).emit('battle:player_joined', { userId }); // notify existing player only
     }
   });
 
@@ -202,7 +210,7 @@ io.on('connection', (socket) => {
     if (!state || state.answered || state.questionIdx >= state.words.length) return;
 
     const userId = state.players[socket.id];
-    const word   = state.words[state.questionIdx];
+    const word   = state.currentWord;
     if (!word) return;
 
     const correct = normalize(answer) === normalize(word.translation) ||
@@ -279,7 +287,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+socket.on('disconnect', () => {
     onlineUsers.delete(socket.id);
     io.emit('online_users', Array.from(onlineUsers.values()));
     Object.keys(battleRooms).forEach(bid => {
@@ -308,8 +316,12 @@ function sendQuestion(battleId) {
   const word = state.words[state.questionIdx];
   if (!word) return;
   state.answered = false;
-  // Randomly ask word→translate or translate→word
+
+  // Clear any previous timeout
+  if (state.timeoutId) { clearTimeout(state.timeoutId); state.timeoutId = null; }
+
   const askWord = Math.random() > 0.5;
+  state.currentWord = word;
   io.to(`battle:${battleId}`).emit('battle:question', {
     questionIdx: state.questionIdx,
     total:       state.words.length,
@@ -318,4 +330,15 @@ function sendQuestion(battleId) {
     hint:        word.hint,
   });
   state.questionIdx++;
+
+  // Server-side timeout: 12s — reveal answer then move on
+  state.timeoutId = setTimeout(() => {
+    if (!state || state.answered) return;
+    state.answered = true;
+    io.to(`battle:${battleId}`).emit('battle:timeout_reveal', {
+      answer: word.translation,
+      word:   word.word,
+    });
+    setTimeout(() => sendQuestion(battleId), 2500);
+  }, 12000);
 }

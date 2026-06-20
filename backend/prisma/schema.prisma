@@ -78,6 +78,8 @@ model User {
   opponent_in    VocabBattle[]   @relation("BattleOpponent")
   won_battles    VocabBattle[]   @relation("BattleWinner")
   battle_stats   BattleStats?
+  pet_words      PetWord[]
+  pet_state      PetState?
 }
 
 model Setting {
@@ -385,4 +387,24 @@ model BattleStats {
   best_combo  Int  @default(0)
 
   user        User @relation(fields: [user_id], references: [id])
+}
+
+model PetWord {
+  id       Int      @id @default(autoincrement())
+  word     String   @unique
+  used_by  Int
+  used_at  DateTime @default(now())
+
+  user     User     @relation(fields: [used_by], references: [id])
+}
+
+model PetState {
+  id         Int      @id @default(autoincrement())
+  user_id    Int      @unique
+  hunger     Float    @default(60)
+  pet_name   String   @default("น้องฟัฟฟี่")
+  total_words Int     @default(0)
+  updated_at DateTime @updatedAt
+
+  user       User     @relation(fields: [user_id], references: [id])
 }
