@@ -3,21 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 
-/* ─── Dictionary check (browser-side) ───────────────────────── */
-const dictCache = new Map();
-async function isValidEnglishWord(word) {
-  const lower = word.toLowerCase();
-  if (dictCache.has(lower)) return dictCache.get(lower);
-  try {
-    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(lower)}`);
-    const valid = res.status === 200;
-    dictCache.set(lower, valid);
-    return valid;
-  } catch {
-    return null; // network error → accept
-  }
+/* ─── Basic word validation (no external API) ───────────────── */
+function isValidWord(word) {
+  // only letters (English a-z or Thai) — no digits, no symbols
+  return /^[a-zA-Zก-๙฀-๿\s-]+$/.test(word);
 }
-function isThai(word) { return /[฀-๿]/.test(word); }
 
 /* ─── Constants ─────────────────────────────────────────────── */
 const MAX_HUNGER = 100;
@@ -163,14 +153,14 @@ const StatusBanner = ({ status, onClose }) => {
   const configs = {
     duplicate_self:   { bg: '#fbbf2422', border: '#fbbf24', text: '#fbbf24', icon: '⚠️', msg: 'คุณเคยใช้คำนี้ไปแล้ว!' },
     duplicate_other:  { bg: '#ef444422', border: '#ef4444', text: '#fca5a5', icon: '🚫', msg: null },
-    invalid:          { bg: '#ef444422', border: '#ef4444', text: '#fca5a5', icon: '❌', msg: 'ไม่พบคำนี้ในพจนานุกรม กรุณาตรวจสอบการสะกด' },
+    invalid:          { bg: '#ef444422', border: '#ef4444', text: '#fca5a5', icon: '❌', msg: 'คำไม่ถูกต้อง กรุณาตรวจสอบ' },
     unverified:       { bg: '#6ee7b722', border: '#6ee7b7', text: '#6ee7b7', icon: '✅', msg: 'ยอมรับคำ (ไม่สามารถตรวจสอบได้ขณะนี้)' },
     fed:              { bg: '#10b98122', border: '#10b981', text: '#6ee7b7', icon: '✅', msg: null },
   };
   const c = configs[status.type] || configs.fed;
   const msg = status.type === 'duplicate_other'
     ? `❗ คำ "${status.word}" มีคนอื่นใช้แล้ว (${status.usedBy})`
-    : c.msg;
+    : status.msg || c.msg;
   if (!msg) return null;
   return (
     <div style={{
@@ -264,18 +254,14 @@ export default function Pet() {
     setStatus(null);
     setLoading(true);
     try {
-      // Validate English words in browser (Thai words skip)
-      if (!isThai(word)) {
-        const valid = await isValidEnglishWord(word);
-        if (valid === false) {
-          setStatus({ type: 'invalid' });
-          addFloat('ไม่ถูก ❌', '#ef4444');
-          setInput('');
-          setLoading(false);
-          inputRef.current?.focus();
-          return;
-        }
-        // null = network error → allow through
+      // Basic format check — only letters, no numbers/symbols
+      if (!isValidWord(word)) {
+        setStatus({ type: 'invalid', msg: 'กรุณาพิมพ์ตัวอักษรเท่านั้น (ไม่มีตัวเลขหรือสัญลักษณ์)' });
+        addFloat('ไม่ถูก ❌', '#ef4444');
+        setInput('');
+        setLoading(false);
+        inputRef.current?.focus();
+        return;
       }
 
       const res = await api.post('/pet/feed', { word });
