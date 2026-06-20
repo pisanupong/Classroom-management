@@ -23,6 +23,7 @@ import RewardStore from './pages/RewardStore';
 import VocabBattle from './pages/VocabBattle';
 import BattleGame from './pages/BattleGame';
 import Settings from './pages/Settings';
+import Pet from './pages/Pet';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -55,6 +56,7 @@ function App() {
             <Route path="/rewards" element={<ProtectedRoute><RewardStore /></ProtectedRoute>} />
             <Route path="/vocab-battle" element={<ProtectedRoute><VocabBattle /></ProtectedRoute>} />
             <Route path="/vocab-battle/:id" element={<ProtectedRoute><BattleGame /></ProtectedRoute>} />
+            <Route path="/pet" element={<ProtectedRoute><Pet /></ProtectedRoute>} />
           </Routes>
         </Router>
       </SettingsProvider>

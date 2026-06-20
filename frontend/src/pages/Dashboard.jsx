@@ -278,6 +278,7 @@ const Dashboard = () => {
     { path: '/rewards',       icon: '🎁', label: 'ของรางวัล',   permKey: 'rewards'        },
     { path: '/vocab-battle',  icon: '⚔️', label: 'Vocab Battle', permKey: 'vocab_battle'  },
     { path: '/leaderboard',   icon: '🕹️', label: 'Ranking',     permKey: 'leaderboard'   },
+    { path: '/pet',           icon: '🐾', label: 'สัตว์เลี้ยง',  permKey: 'pet'            },
   ].filter(n => {
     if (n.roles) return n.roles.includes(user?.role);
     const perm = mp[n.permKey];
