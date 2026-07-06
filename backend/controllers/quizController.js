@@ -44,9 +44,9 @@ const getQuiz = async (req, res) => {
     });
     if (!quiz) return res.status(404).json({ message: 'ไม่พบแบบฝึกหัด' });
 
-    // For students: shuffle choices + hide correct_answer, randomize question order
-    if (req.user.role === 'STUDENT') {
-      // Check attempt count
+    // For non-teachers: shuffle choices + hide correct_answer, check attempt limit
+    const isTeacher = ['TEACHER', 'ADMIN', 'SUPER_USER'].includes(req.user.role);
+    if (!isTeacher) {
       if (quiz.max_attempts > 0) {
         const count = await prisma.quizAttempt.count({
           where: { quiz_id: quiz.id, student_id: req.user.id },
@@ -59,7 +59,7 @@ const getQuiz = async (req, res) => {
       const shuffledQuestions = shuffle(quiz.questions).map(q => ({
         id: q.id,
         question_text: q.question_text,
-        choices: shuffle(q.choices), // randomize choices per student
+        choices: shuffle(q.choices),
       }));
 
       return res.json({ ...quiz, questions: shuffledQuestions });

@@ -10,7 +10,7 @@ router.get('/:id', getQuiz);
 router.put('/:id', restrictTo('TEACHER'), updateQuiz);
 router.put('/:id/toggle', restrictTo('TEACHER'), toggleQuiz);
 router.delete('/:id', restrictTo('TEACHER'), deleteQuiz);
-router.post('/:id/submit', restrictTo('STUDENT'), submitQuiz);
+router.post('/:id/submit', submitQuiz);
 router.get('/:id/leaderboard', getQuizLeaderboard);
 router.get('/:id/my-attempts', getMyAttempts);
 
