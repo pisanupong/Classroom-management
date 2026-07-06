@@ -147,7 +147,8 @@ const UserManagement = () => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [editTarget, setEditTarget] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState(null); // unused but kept for state compat
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: 'ok' });
 
   useEffect(() => {
@@ -308,6 +309,10 @@ const UserManagement = () => {
                           className="px-2.5 py-1.5 rounded-lg text-xs text-white/60 hover:text-white border border-white/10 hover:border-white/30 transition-all">
                           ✏️
                         </button>
+                        <button onClick={() => setDeleteConfirm(u)}
+                          className="px-2.5 py-1.5 rounded-lg text-xs text-red-400/50 hover:text-red-400 border border-red-500/10 hover:border-red-500/30 transition-all">
+                          🗑️
+                        </button>
                       </>
                     ) : (
                       <span className="text-xs text-white/20 italic">
@@ -337,6 +342,30 @@ const UserManagement = () => {
       {editTarget && (
         <EditModal target={editTarget} actorRole={user?.role}
           onClose={() => setEditTarget(null)} onSave={handleUpdate} />
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}>
+          <div className="w-full max-w-sm rounded-2xl p-6 border border-red-500/20 text-center"
+            style={{ background: '#1a1a2e' }}>
+            <p className="text-3xl mb-3">🗑️</p>
+            <h3 className="text-lg font-bold text-white mb-1">ลบผู้ใช้?</h3>
+            <p className="text-white/50 text-sm mb-1">{deleteConfirm.name}</p>
+            <p className="text-white/30 text-xs mb-5">@{deleteConfirm.username} · การดำเนินการนี้ไม่สามารถยกเลิกได้</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/50 hover:text-white text-sm transition-colors">
+                ยกเลิก
+              </button>
+              <button onClick={() => handleDelete(deleteConfirm.id)} disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-white text-sm disabled:opacity-50 transition-all"
+                style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+                {deleting ? 'กำลังลบ...' : '🗑️ ลบเลย'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

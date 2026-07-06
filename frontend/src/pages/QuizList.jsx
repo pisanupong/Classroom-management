@@ -9,6 +9,7 @@ const QuizList = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const isTeacher = ['TEACHER','ADMIN','SUPER_USER'].includes(user?.role);
+  const isLearner = ['STUDENT','CLASS_ADMIN','PARENT','STAFF'].includes(user?.role);
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,7 +61,7 @@ const QuizList = () => {
             const myAttempts = q.attempts || [];
             const bestScore = myAttempts.length ? Math.max(...myAttempts.map(a => a.score)) : null;
             const attemptsLeft = q.max_attempts === 0 ? '∞' : q.max_attempts - myAttempts.length;
-            const canTake = user?.role === 'STUDENT' && (q.max_attempts === 0 || myAttempts.length < q.max_attempts);
+            const canTake = isLearner && (q.max_attempts === 0 || myAttempts.length < q.max_attempts);
 
             return (
               <div key={q.id} className="rounded-2xl p-5 border border-white/10 transition-all hover:border-white/20"
@@ -82,7 +83,7 @@ const QuizList = () => {
                   </div>
 
                   <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                    {user?.role === 'STUDENT' && bestScore !== null && (
+                    {isLearner && bestScore !== null && (
                       <div className="text-right">
                         <p className="text-lg font-bold text-emerald-400">{bestScore} <span className="text-xs text-white/30">pt</span></p>
                         <p className="text-xs text-white/30">คะแนนสูงสุด</p>

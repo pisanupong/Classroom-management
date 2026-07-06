@@ -154,8 +154,9 @@ const submitQuiz = async (req, res) => {
     });
     if (!quiz) return res.status(404).json({ message: 'ไม่พบแบบฝึกหัด' });
 
-    // Check attempt limit
-    if (quiz.max_attempts > 0) {
+    // Check attempt limit (skip for teachers/admins)
+    const isTeacher = ['TEACHER', 'ADMIN', 'SUPER_USER'].includes(req.user.role);
+    if (!isTeacher && quiz.max_attempts > 0) {
       const count = await prisma.quizAttempt.count({
         where: { quiz_id: quizId, student_id: req.user.id },
       });
