@@ -25,7 +25,23 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Deploy (schema changed)
+      # ── Copy source files to VPS via rsync (bypass git pull issues) ──
+      - name: Sync files to VPS
+        run: |
+          echo "${{ secrets.VPS_SSH_KEY }}" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          rsync -avz --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='backend/.env' \
+            --exclude='frontend/.env.local' \
+            -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no -p 22" \
+            ./frontend ./backend \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/classroom-app/
+          rm -f /tmp/deploy_key
+
+      # ── Build + migrate (schema changed) ────────────────────────────
+      - name: Rebuild + db push (schema changed)
         if: steps.schema.outputs.changed == 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -35,12 +51,6 @@ jobs:
           script: |
             set -e
             cd /opt/classroom-app
-            echo "=== force sync to GitHub ==="
-            git remote set-url origin https://github.com/pisanupong/Classroom-management.git
-            git fetch origin main
-            git reset --hard origin/main
-            echo "=== current commit ==="
-            git log --oneline -3
             echo "=== build ==="
             docker compose build --no-cache
             echo "=== prisma db push ==="
@@ -48,9 +58,9 @@ jobs:
             docker compose run --rm $BACKEND npx prisma db push
             echo "=== restart ==="
             docker compose up -d
-            echo "=== done ==="
 
-      - name: Deploy (code only)
+      # ── Build + restart (code only) ──────────────────────────────────
+      - name: Rebuild + restart (code only)
         if: steps.schema.outputs.changed == 'false'
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -60,18 +70,12 @@ jobs:
           script: |
             set -e
             cd /opt/classroom-app
-            echo "=== force sync to GitHub ==="
-            git remote set-url origin https://github.com/pisanupong/Classroom-management.git
-            git fetch origin main
-            git reset --hard origin/main
-            echo "=== current commit ==="
-            git log --oneline -3
             echo "=== build ==="
             docker compose build --no-cache
             echo "=== restart ==="
             docker compose up -d
-            echo "=== done ==="
 
+      # ── Health check ─────────────────────────────────────────────────
       - name: Health check
         uses: appleboy/ssh-action@v1.2.0
         with:
