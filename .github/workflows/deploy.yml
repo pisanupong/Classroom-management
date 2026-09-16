@@ -25,7 +25,6 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      # ── SCP source files to VPS (no git pull needed) ─────────────
       - name: Upload source files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -36,7 +35,25 @@ jobs:
           target: "/opt/classroom-app"
           overwrite: true
 
-      # ── Rebuild + migrate ─────────────────────────────────────────
+      - name: Debug VPS state
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "=== docker-compose.yml ==="
+            cat /opt/classroom-app/docker-compose.yml
+            echo ""
+            echo "=== frontend dir listing ==="
+            ls /opt/classroom-app/frontend/ 2>/dev/null || echo "NO FRONTEND DIR"
+            echo ""
+            echo "=== BingoPlayer has print button? ==="
+            grep -c "printBingo\|พิมพ์ใบ\|Print" /opt/classroom-app/frontend/src/pages/BingoPlayer.jsx 2>/dev/null && echo "OLD FILE" || echo "NEW FILE (no print)"
+            echo ""
+            echo "=== running containers ==="
+            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+
       - name: Rebuild + db push (schema changed)
         if: steps.schema.outputs.changed == 'true'
         uses: appleboy/ssh-action@v1.2.0
@@ -65,7 +82,6 @@ jobs:
             docker compose build --no-cache
             docker compose up -d --force-recreate
 
-      # ── Health check ──────────────────────────────────────────────
       - name: Health check
         uses: appleboy/ssh-action@v1.2.0
         with:
