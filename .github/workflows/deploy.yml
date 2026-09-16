@@ -50,7 +50,7 @@ jobs:
             docker compose build --no-cache
             BACKEND=$(docker compose config --services | grep -i backend | head -1)
             docker compose run --rm $BACKEND npx prisma db push
-            docker compose up -d
+            docker compose up -d --force-recreate
 
       - name: Rebuild + restart (code only)
         if: steps.schema.outputs.changed == 'false'
@@ -63,7 +63,7 @@ jobs:
             set -e
             cd /opt/classroom-app
             docker compose build --no-cache
-            docker compose up -d
+            docker compose up -d --force-recreate
 
       # ── Health check ──────────────────────────────────────────────
       - name: Health check
