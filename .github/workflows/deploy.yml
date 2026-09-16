@@ -3,7 +3,7 @@ name: Deploy to VPS
 on:
   push:
     branches: [main]
-  workflow_dispatch:   # กด "Run workflow" ใน GitHub Actions UI ได้เลย
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -11,11 +11,10 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      # ── 1. Checkout เพื่อ detect ว่า schema เปลี่ยนไหม ─────────
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2   # เปรียบเทียบกับ commit ก่อนหน้าได้
+          fetch-depth: 2
 
       - name: Detect schema change
         id: schema
@@ -26,8 +25,7 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      # ── 2. SSH เข้า VPS แล้ว git pull + rebuild ─────────────────
-      - name: Deploy (schema changed — build + db push + restart)
+      - name: Deploy (schema changed)
         if: steps.schema.outputs.changed == 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -37,20 +35,22 @@ jobs:
           script: |
             set -e
             cd /opt/classroom-app
-            echo "=== Services available ==="
-            docker compose config --services
-            echo "=== git pull ==="
-            git pull origin main
-            echo "=== build (no-cache, all services) ==="
+            echo "=== force sync to GitHub ==="
+            git remote set-url origin https://github.com/pisanupong/Classroom-management.git
+            git fetch origin main
+            git reset --hard origin/main
+            echo "=== current commit ==="
+            git log --oneline -3
+            echo "=== build ==="
             docker compose build --no-cache
             echo "=== prisma db push ==="
             BACKEND=$(docker compose config --services | grep -i backend | head -1)
             docker compose run --rm $BACKEND npx prisma db push
-            echo "=== restart all services ==="
+            echo "=== restart ==="
             docker compose up -d
             echo "=== done ==="
 
-      - name: Deploy (code only — build + restart)
+      - name: Deploy (code only)
         if: steps.schema.outputs.changed == 'false'
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -60,15 +60,18 @@ jobs:
           script: |
             set -e
             cd /opt/classroom-app
-            echo "=== git pull ==="
-            git pull origin main
-            echo "=== build (no-cache, all services) ==="
+            echo "=== force sync to GitHub ==="
+            git remote set-url origin https://github.com/pisanupong/Classroom-management.git
+            git fetch origin main
+            git reset --hard origin/main
+            echo "=== current commit ==="
+            git log --oneline -3
+            echo "=== build ==="
             docker compose build --no-cache
-            echo "=== restart all services ==="
+            echo "=== restart ==="
             docker compose up -d
             echo "=== done ==="
 
-      # ── 3. ตรวจสอบว่า service ขึ้นปกติ ─────────────────────────
       - name: Health check
         uses: appleboy/ssh-action@v1.2.0
         with:
