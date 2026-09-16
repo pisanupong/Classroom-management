@@ -13,83 +13,65 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # ── Build frontend on GitHub Actions runner ───────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          fetch-depth: 2
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Detect schema change
-        id: schema
+      - name: Install & build frontend
         run: |
-          if git diff --name-only HEAD~1 HEAD | grep -q "backend/prisma/schema.prisma"; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
+          cd frontend
+          npm ci
+          npm run build
 
-      - name: Upload source files to VPS
+      # ── Upload built dist to VPS ──────────────────────────────────
+      - name: Upload frontend/dist to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "frontend,backend"
+          source: "frontend/dist"
           target: "/opt/classroom-app"
           overwrite: true
 
-      - name: Debug VPS state
+      # ── Inject new dist into running container ────────────────────
+      - name: Update frontend container
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            echo "=== docker-compose.yml ==="
-            cat /opt/classroom-app/docker-compose.yml
-            echo ""
-            echo "=== frontend dir listing ==="
-            ls /opt/classroom-app/frontend/ 2>/dev/null || echo "NO FRONTEND DIR"
-            echo ""
-            echo "=== BingoPlayer has print button? ==="
-            grep -c "printBingo\|พิมพ์ใบ\|Print" /opt/classroom-app/frontend/src/pages/BingoPlayer.jsx 2>/dev/null && echo "OLD FILE" || echo "NEW FILE (no print)"
-            echo ""
-            echo "=== running containers ==="
-            docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+            echo "=== copy new dist into container ==="
+            docker cp /opt/classroom-app/frontend/dist/. classroom-frontend:/usr/share/nginx/html/
+            echo "=== reload nginx ==="
+            docker exec classroom-frontend nginx -s reload || docker restart classroom-frontend
+            echo "=== done! ==="
+            echo "Site: http://acp-sixseven.online:8081/"
 
-      - name: Rebuild + db push (schema changed)
-        if: steps.schema.outputs.changed == 'true'
-        uses: appleboy/ssh-action@v1.2.0
+      # ── Also upload backend + rebuild if changed ──────────────────
+      - name: Upload backend source to VPS
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            set -e
-            cd /opt/classroom-app
-            docker compose build --no-cache
-            BACKEND=$(docker compose config --services | grep -i backend | head -1)
-            docker compose run --rm $BACKEND npx prisma db push
-            docker compose up -d --force-recreate
+          source: "backend"
+          target: "/opt/classroom-app"
+          overwrite: true
 
-      - name: Rebuild + restart (code only)
-        if: steps.schema.outputs.changed == 'false'
+      - name: Restart backend container
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            set -e
-            cd /opt/classroom-app
-            docker compose build --no-cache
-            docker compose up -d --force-recreate
-
-      - name: Health check
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            cd /opt/classroom-app
-            docker compose ps
-            sleep 5
-            curl -sf http://localhost:5000/health && echo "Backend OK" || echo "Backend warming up..."
+            docker restart classroom-backend
+            sleep 3
+            docker ps | grep classroom
