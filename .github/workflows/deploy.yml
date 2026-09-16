@@ -25,22 +25,18 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
-      # ── Copy source files to VPS via rsync (bypass git pull issues) ──
-      - name: Sync files to VPS
-        run: |
-          echo "${{ secrets.VPS_SSH_KEY }}" > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-          rsync -avz --delete \
-            --exclude='.git' \
-            --exclude='node_modules' \
-            --exclude='backend/.env' \
-            --exclude='frontend/.env.local' \
-            -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no -p 22" \
-            ./frontend ./backend \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/classroom-app/
-          rm -f /tmp/deploy_key
+      # ── SCP source files to VPS (no git pull needed) ─────────────
+      - name: Upload source files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "frontend,backend"
+          target: "/opt/classroom-app"
+          overwrite: true
 
-      # ── Build + migrate (schema changed) ────────────────────────────
+      # ── Rebuild + migrate ─────────────────────────────────────────
       - name: Rebuild + db push (schema changed)
         if: steps.schema.outputs.changed == 'true'
         uses: appleboy/ssh-action@v1.2.0
@@ -51,15 +47,11 @@ jobs:
           script: |
             set -e
             cd /opt/classroom-app
-            echo "=== build ==="
             docker compose build --no-cache
-            echo "=== prisma db push ==="
             BACKEND=$(docker compose config --services | grep -i backend | head -1)
             docker compose run --rm $BACKEND npx prisma db push
-            echo "=== restart ==="
             docker compose up -d
 
-      # ── Build + restart (code only) ──────────────────────────────────
       - name: Rebuild + restart (code only)
         if: steps.schema.outputs.changed == 'false'
         uses: appleboy/ssh-action@v1.2.0
@@ -70,12 +62,10 @@ jobs:
           script: |
             set -e
             cd /opt/classroom-app
-            echo "=== build ==="
             docker compose build --no-cache
-            echo "=== restart ==="
             docker compose up -d
 
-      # ── Health check ─────────────────────────────────────────────────
+      # ── Health check ──────────────────────────────────────────────
       - name: Health check
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -87,4 +77,3 @@ jobs:
             docker compose ps
             sleep 5
             curl -sf http://localhost:5000/health && echo "Backend OK" || echo "Backend warming up..."
-            echo "Site: http://acp-sixseven.online:8081/"
