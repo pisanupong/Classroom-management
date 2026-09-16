@@ -5,5 +5,6 @@ git add .
 git commit -m $msg
 git push origin main
 Write-Host ""
-Write-Host "✓ Push แล้ว — ดู deploy ได้ที่:" -ForegroundColor Green
+Write-Host "OK Push done — check deploy at:" -ForegroundColor Green
 Write-Host "  https://github.com/pisanupong/Classroom-management/actions" -ForegroundColor Cyan
+Write-Host "  Site: http://acp-sixseven.online:8081/" -ForegroundColor Cyan

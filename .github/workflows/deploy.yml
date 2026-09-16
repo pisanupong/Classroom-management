@@ -80,3 +80,4 @@ jobs:
             docker compose ps
             sleep 5
             curl -sf http://localhost:5000/health && echo "Backend OK" || echo "Backend warming up..."
+            echo "Site: http://acp-sixseven.online:8081/"
