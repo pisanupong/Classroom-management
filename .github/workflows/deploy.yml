@@ -37,14 +37,17 @@ jobs:
           script: |
             set -e
             cd /opt/classroom-app
+            echo "=== Services available ==="
+            docker compose config --services
             echo "=== git pull ==="
             git pull origin main
-            echo "=== build (no-cache) ==="
-            docker compose build --no-cache classroom-backend classroom-frontend
+            echo "=== build (no-cache, all services) ==="
+            docker compose build --no-cache
             echo "=== prisma db push ==="
-            docker compose run --rm classroom-backend npx prisma db push
-            echo "=== restart services ==="
-            docker compose up -d classroom-backend classroom-frontend
+            BACKEND=$(docker compose config --services | grep -i backend | head -1)
+            docker compose run --rm $BACKEND npx prisma db push
+            echo "=== restart all services ==="
+            docker compose up -d
             echo "=== done ==="
 
       - name: Deploy (code only — build + restart)
@@ -59,10 +62,10 @@ jobs:
             cd /opt/classroom-app
             echo "=== git pull ==="
             git pull origin main
-            echo "=== build (no-cache) ==="
-            docker compose build --no-cache classroom-backend classroom-frontend
-            echo "=== restart services ==="
-            docker compose up -d classroom-backend classroom-frontend
+            echo "=== build (no-cache, all services) ==="
+            docker compose build --no-cache
+            echo "=== restart all services ==="
+            docker compose up -d
             echo "=== done ==="
 
       # ── 3. ตรวจสอบว่า service ขึ้นปกติ ─────────────────────────
@@ -75,5 +78,5 @@ jobs:
           script: |
             cd /opt/classroom-app
             docker compose ps
-            sleep 3
-            curl -sf http://localhost:5000/health && echo "Backend OK" || echo "Backend not responding yet"
+            sleep 5
+            curl -sf http://localhost:5000/health && echo "Backend OK" || echo "Backend warming up..."
