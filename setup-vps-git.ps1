@@ -13,7 +13,7 @@
 
 $VPS         = "root@72.62.67.40"
 $REMOTE      = "/opt/classroom-app"
-$REPO_URL    = "https://github.com/pisanupong/asset-manage.git"
+$REPO_URL    = "https://github.com/pisanupong/Classroom-management.git"
 $KEY_FILE    = "$env:USERPROFILE\.ssh\classroom_deploy_key"
 
 Write-Host ""
@@ -62,7 +62,7 @@ Write-Host "  ✓ pull แล้ว" -ForegroundColor Green
 Write-Host ""
 Write-Host "[5/5] เพิ่ม Secrets ใน GitHub:" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  ไปที่ https://github.com/pisanupong/asset-manage/settings/secrets/actions" -ForegroundColor Cyan
+Write-Host "  ไปที่ https://github.com/pisanupong/Classroom-management/settings/secrets/actions" -ForegroundColor Cyan
 Write-Host "  แล้วเพิ่ม 3 secrets นี้:" -ForegroundColor White
 Write-Host ""
 Write-Host "  VPS_HOST  = 72.62.67.40" -ForegroundColor White

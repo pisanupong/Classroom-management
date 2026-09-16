@@ -6,4 +6,4 @@ git commit -m $msg
 git push origin main
 Write-Host ""
 Write-Host "✓ Push แล้ว — ดู deploy ได้ที่:" -ForegroundColor Green
-Write-Host "  https://github.com/pisanupong/asset-manage/actions" -ForegroundColor Cyan
+Write-Host "  https://github.com/pisanupong/Classroom-management/actions" -ForegroundColor Cyan
