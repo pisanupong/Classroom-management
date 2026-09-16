@@ -28,6 +28,7 @@ const protect = async (req, res, next) => {
           name: true,
           student_number: true,
           total_points: true,
+          character_data: true,   // ต้องส่งด้วย ไม่งั้น GET /users/me ไม่มีตัวละครที่บันทึกไว้
         },
       });
       // Update last_active (fire-and-forget, don't await)

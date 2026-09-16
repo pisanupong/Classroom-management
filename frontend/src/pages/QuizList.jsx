@@ -61,7 +61,8 @@ const QuizList = () => {
             const myAttempts = q.attempts || [];
             const bestScore = myAttempts.length ? Math.max(...myAttempts.map(a => a.score)) : null;
             const attemptsLeft = q.max_attempts === 0 ? '∞' : q.max_attempts - myAttempts.length;
-            const canTake = isLearner && (q.max_attempts === 0 || myAttempts.length < q.max_attempts);
+            // ครู/แอดมินทดลองทำได้ไม่จำกัดครั้ง (backend ข้ามลิมิตให้อยู่แล้ว)
+            const canTake = isTeacher || (isLearner && (q.max_attempts === 0 || myAttempts.length < q.max_attempts));
 
             return (
               <div key={q.id} className="rounded-2xl p-5 border border-white/10 transition-all hover:border-white/20"
@@ -93,6 +94,12 @@ const QuizList = () => {
                     <div className="flex gap-2">
                       {isTeacher ? (
                         <>
+                          <button onClick={() => navigate(`/quiz/${q.id}/take`)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium text-white hover:scale-105 transition-all"
+                            style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)' }}
+                            title="ทดลองทำเอง — ได้ของรางวัลเข้าสัตว์เลี้ยงเหมือนกัน">
+                            🎯 ทดลองทำ
+                          </button>
                           <button onClick={() => navigate(`/quiz/${q.id}/leaderboard`)}
                             className="px-3 py-1.5 rounded-lg text-xs border border-white/10 text-white/60 hover:text-white transition-all">
                             📊 อันดับ

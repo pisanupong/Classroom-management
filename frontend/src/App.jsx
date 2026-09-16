@@ -25,6 +25,13 @@ import VocabBattle from './pages/VocabBattle';
 import BattleGame from './pages/BattleGame';
 import Settings from './pages/Settings';
 import Pet from './pages/Pet';
+import Python from './pages/Python';
+import Practice from './pages/Practice';
+import GameLobby from './pages/GameLobby';
+import GamePlay from './pages/GamePlay';
+import BingoLobby from './pages/BingoLobby';
+import BingoHost from './pages/BingoHost';
+import BingoPlayer from './pages/BingoPlayer';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -59,6 +66,13 @@ function App() {
             <Route path="/vocab-battle" element={<ProtectedRoute><VocabBattle /></ProtectedRoute>} />
             <Route path="/vocab-battle/:id" element={<ProtectedRoute><BattleGame /></ProtectedRoute>} />
             <Route path="/pet" element={<ProtectedRoute><Pet /></ProtectedRoute>} />
+            <Route path="/python" element={<ProtectedRoute><Python /></ProtectedRoute>} />
+            <Route path="/practice" element={<ProtectedRoute><Practice /></ProtectedRoute>} />
+            <Route path="/game" element={<ProtectedRoute><GameLobby /></ProtectedRoute>} />
+            <Route path="/game/play" element={<ProtectedRoute><GamePlay /></ProtectedRoute>} />
+            <Route path="/bingo" element={<ProtectedRoute><BingoLobby /></ProtectedRoute>} />
+            <Route path="/bingo/host/:id" element={<ProtectedRoute><BingoHost /></ProtectedRoute>} />
+            <Route path="/bingo/play/:id" element={<BingoPlayer />} />
           </Routes>
         </Router>
       </SettingsProvider>

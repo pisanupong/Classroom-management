@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
+import { RARITY, LOOT_ITEMS } from '../constants/petLoot';
 
 const QuizResult = () => {
   const { id } = useParams();
@@ -78,6 +79,43 @@ const QuizResult = () => {
               </div>
               {data.time_taken > 0 && <p className="text-white/30 text-xs mt-2">⏱ ใช้เวลา {Math.floor(data.time_taken/60)}:{String(data.time_taken%60).padStart(2,'0')} นาที</p>}
             </div>
+
+            {/* ── ของรางวัลสุ่มสำหรับสัตว์เลี้ยง ── */}
+            {Array.isArray(data.rewards) && data.rewards.length > 0 && (
+              <div className="rounded-2xl p-5 border" style={{ background:'rgba(167,139,250,0.10)', borderColor:'rgba(167,139,250,0.35)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-white">🎁 ของรางวัลสำหรับสัตว์เลี้ยง</h3>
+                  <button onClick={() => navigate('/pet')} className="text-xs text-purple-300 hover:text-purple-200">ไปดูน้อง →</button>
+                </div>
+                <div className="space-y-2">
+                  {data.rewards.map((r, i) => {
+                    const rc = RARITY[r.rarity]?.color || '#94a3b8';
+                    return (
+                      <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5 border"
+                        style={{ background:`${rc}12`, borderColor:`${rc}45`, animation:`lootPop .45s ${i*0.13}s ease-out both` }}>
+                        <span className="text-2xl flex-shrink-0">{r.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">
+                            {r.name}{r.amount > 1 && <span className="text-white/50"> ×{r.amount}</span>}
+                          </p>
+                          <p className="text-xs" style={{ color:rc }}>
+                            {r.type === 'costume' ? `ชุดแต่ง · ${RARITY[r.rarity]?.label || ''}` : LOOT_ITEMS[r.type]?.desc || 'ไอเทม'}
+                          </p>
+                        </div>
+                        {r.rarity === 'legendary' && <span className="text-xs px-2 py-1 rounded-lg" style={{ background:'#fbbf2422', color:'#fbbf24' }}>หายากสุด!</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-white/30 text-xs mt-3">💡 ทำถูกยิ่งมาก ยิ่งได้สุ่มหลายครั้ง — 100% ได้สุ่ม 3 ครั้ง</p>
+                <style>{`@keyframes lootPop{0%{opacity:0;transform:translateY(10px) scale(.9)}60%{transform:translateY(0) scale(1.04)}100%{opacity:1;transform:none}}`}</style>
+              </div>
+            )}
+            {Array.isArray(data.rewards) && data.rewards.length === 0 && pct < 50 && (
+              <div className="rounded-2xl p-4 border text-center" style={{ background:'rgba(255,255,255,0.04)', borderColor:'rgba(255,255,255,0.1)' }}>
+                <p className="text-sm text-white/50">🎁 รอบนี้ไม่ได้ของรางวัล — ทำถูกให้ถึง 50% ขึ้นไปจะได้สุ่มแน่นอน</p>
+              </div>
+            )}
 
             {/* Answer review */}
             <div className="space-y-3">

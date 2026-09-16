@@ -1,0 +1,79 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # กด "Run workflow" ใน GitHub Actions UI ได้เลย
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # ── 1. Checkout เพื่อ detect ว่า schema เปลี่ยนไหม ─────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # เปรียบเทียบกับ commit ก่อนหน้าได้
+
+      - name: Detect schema change
+        id: schema
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q "backend/prisma/schema.prisma"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ── 2. SSH เข้า VPS แล้ว git pull + rebuild ─────────────────
+      - name: Deploy (schema changed — build + db push + restart)
+        if: steps.schema.outputs.changed == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/classroom-app
+            echo "=== git pull ==="
+            git pull origin main
+            echo "=== build (no-cache) ==="
+            docker compose build --no-cache classroom-backend classroom-frontend
+            echo "=== prisma db push ==="
+            docker compose run --rm classroom-backend npx prisma db push
+            echo "=== restart services ==="
+            docker compose up -d classroom-backend classroom-frontend
+            echo "=== done ==="
+
+      - name: Deploy (code only — build + restart)
+        if: steps.schema.outputs.changed == 'false'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/classroom-app
+            echo "=== git pull ==="
+            git pull origin main
+            echo "=== build (no-cache) ==="
+            docker compose build --no-cache classroom-backend classroom-frontend
+            echo "=== restart services ==="
+            docker compose up -d classroom-backend classroom-frontend
+            echo "=== done ==="
+
+      # ── 3. ตรวจสอบว่า service ขึ้นปกติ ─────────────────────────
+      - name: Health check
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/classroom-app
+            docker compose ps
+            sleep 3
+            curl -sf http://localhost:5000/health && echo "Backend OK" || echo "Backend not responding yet"

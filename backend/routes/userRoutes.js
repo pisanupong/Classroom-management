@@ -9,18 +9,19 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.get('/me', protect, getMe);
 
-// Save character data
+// Save character data (RPG config)
 router.put('/me/character', protect, async (req, res) => {
   try {
-    const { grid, width, height } = req.body;
-    if (!grid || !width || !height) return res.status(400).json({ message: 'ข้อมูลไม่ครบ' });
+    const characterData = req.body;
+    if (!characterData || typeof characterData !== 'object') return res.status(400).json({ message: 'ข้อมูลไม่ถูกต้อง' });
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: { character_data: { grid, width, height } },
+      data: { character_data: characterData },
       select: { id: true, character_data: true },
     });
     res.json(user);
   } catch (error) {
+    console.error('PUT /me/character failed for user', req.user?.id, '→', error.message);
     res.status(500).json({ message: error.message });
   }
 });

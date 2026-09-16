@@ -1074,12 +1074,219 @@ const SubjectFormModal = ({ subject, teachers, onClose, onSaved }) => {
   );
 };
 
+/* ══════════════════ TAB: ประวัติการใช้งาน ══════════════════ */
+const fmtTime = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleString('th-TH', { day:'2-digit', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+};
+
+const METHOD_COLOR = {
+  POST:   { color:'#34d399', bg:'rgba(16,185,129,0.15)' },
+  PUT:    { color:'#fbbf24', bg:'rgba(245,158,11,0.15)' },
+  PATCH:  { color:'#fbbf24', bg:'rgba(245,158,11,0.15)' },
+  DELETE: { color:'#f87171', bg:'rgba(239,68,68,0.15)'  },
+};
+
+const TabActivity = ({ actorRole }) => {
+  const [meta, setMeta]     = useState(null);
+  const [data, setData]     = useState({ rows:[], total:0, page:1, pages:1 });
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ category:'', userId:'', search:'', from:'', to:'', failedOnly:false });
+  const [page, setPage]     = useState(1);
+  const [msg, setMsg]       = useState('');
+  const [purging, setPurging] = useState(false);
+
+  const loadMeta = useCallback(async () => {
+    try { setMeta((await api.get('/activity/meta')).data); } catch { setMeta(null); }
+  }, []);
+
+  const loadRows = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = { page, limit: 30 };
+      Object.entries(filters).forEach(([k, v]) => { if (v !== '' && v !== false) params[k] = v; });
+      setData((await api.get('/activity', { params })).data);
+    } catch { setData({ rows:[], total:0, page:1, pages:1 }); }
+    finally { setLoading(false); }
+  }, [page, filters]);
+
+  useEffect(() => { loadMeta(); }, [loadMeta]);
+  useEffect(() => { const t = setTimeout(loadRows, 300); return () => clearTimeout(t); }, [loadRows]);
+
+  const setF = (k, v) => { setFilters(f => ({ ...f, [k]: v })); setPage(1); };
+
+  const purge = async (days) => {
+    const label = days > 0 ? `ที่เก่ากว่า ${days} วัน` : 'ทั้งหมด';
+    if (!window.confirm(`ล้างประวัติการใช้งาน${label} ใช่หรือไม่?\nการลบไม่สามารถย้อนกลับได้`)) return;
+    setPurging(true);
+    try {
+      const res = await api.delete('/activity/purge', { params: { days } });
+      setMsg(`ล้างประวัติ ${res.data.deleted} รายการแล้ว ✅`);
+      setPage(1); loadRows(); loadMeta();
+      setTimeout(() => setMsg(''), 4000);
+    } catch (e) { setMsg((e.response?.data?.message || 'ล้างไม่สำเร็จ') + ' ❌'); }
+    finally { setPurging(false); }
+  };
+
+  const exportCSV = () => {
+    const header = ['เวลา','ผู้ใช้','username','role','การกระทำ','หมวด','method','path','status','รายละเอียด','IP'];
+    const rows = data.rows.map(r => [
+      fmtTime(r.created_at), r.name||'', r.username||'', r.role||'', r.action, r.category,
+      r.method, r.path, r.status, r.detail||'', r.ip||'',
+    ]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob(['﻿'+csv], { type:'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `activity-log-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const inputStyle = {
+    background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)',
+    color:'#fff', borderRadius:'0.75rem', padding:'0.5rem 0.75rem', fontSize:'0.875rem', outline:'none',
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* สรุป */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex gap-2 flex-wrap">
+          {[['📋 ทั้งหมด', meta?.total ?? '–', '#a78bfa'], ['📅 วันนี้', meta?.today ?? '–', '#38bdf8'], ['🔎 ที่กรองได้', data.total, '#34d399']].map(([l, v, c]) => (
+            <div key={l} className="px-3 py-2 rounded-xl border" style={{ background:'rgba(255,255,255,0.04)', borderColor:'rgba(255,255,255,0.08)' }}>
+              <div className="text-xs" style={{ color:'rgba(255,255,255,0.4)' }}>{l}</div>
+              <div className="font-bold" style={{ color:c }}>{typeof v === 'number' ? v.toLocaleString() : v}</div>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => { loadRows(); loadMeta(); }} className="px-3 py-2 rounded-xl text-sm border hover:bg-white/5"
+            style={{ borderColor:'rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.7)' }}>🔄 รีเฟรช</button>
+          <button onClick={exportCSV} disabled={!data.rows.length} className="px-3 py-2 rounded-xl text-sm border hover:bg-white/5 disabled:opacity-40"
+            style={{ borderColor:'rgba(16,185,129,0.3)', color:'#34d399' }}>⬇️ Export CSV</button>
+          {ROLE_LEVEL[actorRole] >= ROLE_LEVEL.SUPER_USER && (
+            <>
+              <button onClick={() => purge(30)} disabled={purging} className="px-3 py-2 rounded-xl text-sm border hover:bg-white/5 disabled:opacity-40"
+                style={{ borderColor:'rgba(245,158,11,0.3)', color:'#fbbf24' }}>🧹 ล้างที่เก่ากว่า 30 วัน</button>
+              <button onClick={() => purge(0)} disabled={purging} className="px-3 py-2 rounded-xl text-sm border hover:bg-white/5 disabled:opacity-40"
+                style={{ borderColor:'rgba(239,68,68,0.3)', color:'#f87171' }}>🗑️ ล้างทั้งหมด</button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {msg && (
+        <div className={`p-3 rounded-xl text-sm border ${msg.includes('❌')?'bg-red-500/10 border-red-500/30 text-red-300':'bg-green-500/10 border-green-500/30 text-green-300'}`}>
+          {msg}
+        </div>
+      )}
+
+      {/* ตัวกรอง */}
+      <div className="flex gap-2 flex-wrap items-center">
+        <input value={filters.search} onChange={e => setF('search', e.target.value)}
+          placeholder="🔍 ค้นหา ชื่อ / การกระทำ / รายละเอียด..." style={{ ...inputStyle, flex:'1 1 220px' }} />
+        <select value={filters.category} onChange={e => setF('category', e.target.value)} style={inputStyle}>
+          <option value="">ทุกหมวด</option>
+          {(meta?.categories || []).map(c => (
+            <option key={c.key} value={c.key}>{c.label} ({c.count})</option>
+          ))}
+        </select>
+        <select value={filters.userId} onChange={e => setF('userId', e.target.value)} style={inputStyle}>
+          <option value="">ทุกคน</option>
+          {(meta?.users || []).map(u => (
+            <option key={u.userId} value={u.userId}>{u.name || u.username} ({u.count})</option>
+          ))}
+        </select>
+        <input type="date" value={filters.from} onChange={e => setF('from', e.target.value)} style={inputStyle} />
+        <span style={{ color:'rgba(255,255,255,0.3)' }}>–</span>
+        <input type="date" value={filters.to} onChange={e => setF('to', e.target.value)} style={inputStyle} />
+        <label className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl border cursor-pointer"
+          style={{ borderColor: filters.failedOnly ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)',
+                   color: filters.failedOnly ? '#f87171' : 'rgba(255,255,255,0.5)',
+                   background: filters.failedOnly ? 'rgba(239,68,68,0.1)' : 'transparent' }}>
+          <input type="checkbox" checked={filters.failedOnly} onChange={e => setF('failedOnly', e.target.checked)} />
+          เฉพาะที่ผิดพลาด
+        </label>
+        {(filters.search || filters.category || filters.userId || filters.from || filters.to || filters.failedOnly) && (
+          <button onClick={() => { setFilters({ category:'', userId:'', search:'', from:'', to:'', failedOnly:false }); setPage(1); }}
+            className="text-sm px-3 py-2 rounded-xl hover:bg-white/5" style={{ color:'rgba(255,255,255,0.45)' }}>✕ ล้างตัวกรอง</button>
+        )}
+      </div>
+
+      {/* ตาราง */}
+      <div className="rounded-2xl overflow-hidden" style={{ border:'1px solid rgba(255,255,255,0.08)' }}>
+        <div className="hidden md:grid px-4 py-2.5 text-xs font-medium uppercase tracking-wide"
+          style={{ gridTemplateColumns:'150px 1fr 1.3fr 90px', background:'rgba(255,255,255,0.04)', color:'rgba(255,255,255,0.4)' }}>
+          <span>เวลา</span><span>ผู้ใช้</span><span>การกระทำ</span><span className="text-right">สถานะ</span>
+        </div>
+
+        {loading ? (
+          <div className="p-8 text-center text-sm" style={{ color:'rgba(255,255,255,0.4)' }}>⏳ กำลังโหลด...</div>
+        ) : !data.rows.length ? (
+          <div className="p-8 text-center text-sm" style={{ color:'rgba(255,255,255,0.4)' }}>
+            ยังไม่มีประวัติที่ตรงกับเงื่อนไข
+          </div>
+        ) : data.rows.map(r => {
+          const rm = ROLE_META[r.role] || null;
+          const mc = METHOD_COLOR[r.method] || { color:'rgba(255,255,255,0.5)', bg:'rgba(255,255,255,0.06)' };
+          const failed = r.status >= 400;
+          return (
+            <div key={r.id} className="grid px-4 py-3 items-center border-t gap-2"
+              style={{ gridTemplateColumns:'150px 1fr 1.3fr 90px', borderColor:'rgba(255,255,255,0.05)',
+                       background: failed ? 'rgba(239,68,68,0.05)' : 'transparent' }}>
+              <span className="text-xs" style={{ color:'rgba(255,255,255,0.45)' }}>{fmtTime(r.created_at)}</span>
+
+              <div className="min-w-0">
+                <div className="text-sm truncate" style={{ color:'rgba(255,255,255,0.85)' }}>
+                  {r.name || r.username || '(ไม่ทราบ)'}
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {rm && (
+                    <span className="px-1.5 py-0.5 rounded-md text-[10px] border"
+                      style={{ background:rm.bg, color:rm.color, borderColor:rm.border }}>{rm.icon} {rm.label}</span>
+                  )}
+                  {r.ip && <span className="text-[10px]" style={{ color:'rgba(255,255,255,0.25)' }}>{r.ip}</span>}
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="text-sm truncate" style={{ color:'#e9d5ff' }}>{r.action}</div>
+                <div className="text-[11px] truncate flex items-center gap-1.5 mt-0.5">
+                  <span className="px-1.5 rounded" style={{ background:mc.bg, color:mc.color }}>{r.method}</span>
+                  <span style={{ color:'rgba(255,255,255,0.3)' }}>{r.path}</span>
+                  {r.detail && <span style={{ color:'rgba(255,255,255,0.4)' }}>· {r.detail}</span>}
+                </div>
+              </div>
+
+              <span className="text-right text-xs font-medium"
+                style={{ color: failed ? '#f87171' : '#34d399' }}>{r.status}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* แบ่งหน้า */}
+      {data.pages > 1 && (
+        <div className="flex items-center justify-center gap-2 text-sm">
+          <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+            className="px-3 py-1.5 rounded-lg border disabled:opacity-30 hover:bg-white/5"
+            style={{ borderColor:'rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.6)' }}>← ก่อนหน้า</button>
+          <span style={{ color:'rgba(255,255,255,0.45)' }}>หน้า {data.page} / {data.pages}</span>
+          <button disabled={page >= data.pages} onClick={() => setPage(p => p + 1)}
+            className="px-3 py-1.5 rounded-lg border disabled:opacity-30 hover:bg-white/5"
+            style={{ borderColor:'rgba(255,255,255,0.12)', color:'rgba(255,255,255,0.6)' }}>ถัดไป →</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ══════════════════ MAIN SETTINGS PAGE ══════════════════ */
 const TABS = [
   { id:'users',       icon:'👥', label:'จัดการผู้ใช้'     },
   { id:'subjects',    icon:'📚', label:'วิชา & อาจารย์'   },
   { id:'permissions', icon:'🔐', label:'สิทธิ์เมนู'       },
   { id:'appearance',  icon:'🎨', label:'หน้า Login'       },
+  { id:'activity',    icon:'📜', label:'ประวัติการใช้งาน' },
 ];
 
 const Settings = () => {
@@ -1143,6 +1350,7 @@ const Settings = () => {
           {activeTab==='subjects'    && <TabSubjects/>}
           {activeTab==='permissions' && <TabPermissions settings={settings} onSaved={reloadSettings}/>}
           {activeTab==='appearance'  && <TabLoginBg    settings={settings} onSaved={reloadSettings}/>}
+          {activeTab==='activity'    && <TabActivity  actorRole={user?.role}/>}
         </div>
       </div>
     </div>

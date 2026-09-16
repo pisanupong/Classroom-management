@@ -80,6 +80,131 @@ model User {
   battle_stats   BattleStats?
   pet_words      PetWord[]
   pet_state      PetState?
+  python_state   PythonState?
+  activity_logs  ActivityLog[]
+  practice_items    PracticeItem[]    @relation("PracticeItemAuthor")
+  practice_attempts PracticeAttempt[]
+  mastery_states    MasteryState[]
+}
+
+/* ═══════════ ระบบวิเคราะห์การเรียนรู้ (Learning Analytics) ═══════════ */
+
+// คลังข้อสอบที่ผูกกับ วิชา → หัวข้อ → หัวข้อย่อย + ระดับ Bloom
+model PracticeItem {
+  id             Int      @id @default(autoincrement())
+  subject_id     Int
+  topic          String                        // หัวข้อหลัก
+  sub_topic      String                        // หัวข้อย่อย — หน่วยที่ใช้วัด mastery
+  bloom          String   @default("understand") // remember|understand|apply|analyze|evaluate|create
+  question_text  String
+  choices        Json                          // ["ก","ข","ค","ง"]
+  correct_answer String
+  explanation    String?                       // เฉลยอธิบาย แสดงหลังตอบ
+  hint           String?
+  misconception  Json?                          // { "ตัวเลือกที่ผิด": "มโนทัศน์ที่คลาดเคลื่อน" }
+  elo            Float    @default(1200)       // ความยากแบบไดนามิก
+  times_shown    Int      @default(0)
+  times_correct  Int      @default(0)
+  is_active      Boolean  @default(true)
+  created_by     Int?
+  created_at     DateTime @default(now())
+  source_question_id Int? @unique   // ผูกกับ Question ของ Quiz เดิม → ให้ Quiz ป้อนสถิติเข้าระบบวิเคราะห์ได้
+
+  subject        Subject  @relation(fields: [subject_id], references: [id])
+  author         User?    @relation("PracticeItemAuthor", fields: [created_by], references: [id])
+  attempts       PracticeAttempt[]
+
+  @@index([subject_id, topic, sub_topic])
+  @@index([is_active])
+}
+
+// ประวัติการตอบรายข้อ (time-series) — ข้อมูลดิบสำหรับวิเคราะห์
+model PracticeAttempt {
+  id             Int      @id @default(autoincrement())
+  user_id        Int
+  item_id        Int
+  subject_id     Int
+  topic          String
+  sub_topic      String
+  bloom          String
+  is_correct     Boolean
+  chosen_answer  String?
+  time_spent_sec Int      @default(0)
+  answer_changes Int      @default(0)   // เปลี่ยนคำตอบกี่ครั้งก่อนส่ง
+  hint_used      Boolean  @default(false)
+  skipped        Boolean  @default(false)
+  source         String   @default("practice")  // practice | quiz — quiz ไม่มีเวลารายข้อจริง
+  quality        Int      @default(0)   // q 0–5 สำหรับ SM-2
+  attempt_number Int      @default(1)   // ทำข้อนี้เป็นครั้งที่เท่าไร
+  elo_before     Float    @default(1200)
+  elo_after      Float    @default(1200)
+  item_elo_before Float   @default(1200)
+  created_at     DateTime @default(now())
+
+  user           User         @relation(fields: [user_id], references: [id])
+  item           PracticeItem @relation(fields: [item_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at])
+  @@index([user_id, sub_topic])
+  @@index([item_id])
+  @@index([subject_id])
+}
+
+// สถานะความรู้ปัจจุบันของผู้เรียน ต่อ 1 หัวข้อย่อย (snapshot)
+model MasteryState {
+  id               Int      @id @default(autoincrement())
+  user_id          Int
+  subject_id       Int
+  topic            String
+  sub_topic        String
+
+  elo              Float    @default(1200)   // ความสามารถ (Elo)
+  p_known          Float    @default(0.15)   // BKT: โอกาสที่เข้าใจแล้วจริง
+  mastery_status   String   @default("new")  // new|learning|developing|proficient|mastered
+  streak           Int      @default(0)      // ตอบถูกติดกัน
+  longest_streak   Int      @default(0)
+  total_attempts   Int      @default(0)
+  total_correct    Int      @default(0)
+  avg_time_sec     Float    @default(0)
+  first_accuracy   Float?                    // % ถูกช่วง 5 ครั้งแรก — ใช้เทียบ growth
+  recent_accuracy  Float?                    // % ถูกช่วง 5 ครั้งล่าสุด
+
+  // SM-2 spaced repetition
+  ef               Float    @default(2.5)
+  interval_days    Int      @default(0)
+  reps             Int      @default(0)
+  next_review_date DateTime?
+  last_tested_at   DateTime?
+  updated_at       DateTime @updatedAt
+
+  user             User     @relation(fields: [user_id], references: [id])
+
+  @@unique([user_id, sub_topic])
+  @@index([user_id, next_review_date])
+  @@index([subject_id])
+}
+
+model ActivityLog {
+  id         Int      @id @default(autoincrement())
+  user_id    Int?                        // null = ยังไม่ล็อกอิน (เช่น login ล้มเหลว)
+  username   String?                     // เก็บซ้ำไว้ เผื่อผู้ใช้ถูกลบภายหลัง
+  name       String?
+  role       String?
+  action     String                      // ป้ายกำกับภาษาไทย เช่น "เข้าสู่ระบบ"
+  category   String                      // auth | users | quiz | ... สำหรับกรอง
+  method     String
+  path       String
+  status     Int
+  detail     String?                     // ข้อมูลย่อ เช่น ชื่อรายการที่แก้
+  ip         String?
+  user_agent String?
+  created_at DateTime @default(now())
+
+  user       User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([created_at])
+  @@index([user_id])
+  @@index([category])
 }
 
 model Setting {
@@ -97,6 +222,7 @@ model Subject {
 
   teacher     User?        @relation("SubjectTeacher", fields: [teacher_id], references: [id])
   assignments Assignment[]
+  practice_items PracticeItem[]
 }
 
 model Assignment {
@@ -398,6 +524,26 @@ model PetWord {
   user     User     @relation(fields: [used_by], references: [id])
 }
 
+model PythonState {
+  id          Int      @id @default(autoincrement())
+  user_id     Int      @unique
+  score       Int      @default(0)            // คะแนนรวมจากเมนู Python
+  best_score  Int      @default(0)
+  xp          Int      @default(0)
+  level       Int      @default(1)
+  hints       Int      @default(5)            // สิทธิ์ดูคำใบ้ที่เหลือ
+  char_name   String   @default("PyBot")
+  learned     Json?                           // { print:true, ... }
+  missions    Json?                           // { m1:true, ... }
+  rewards     Json?                           // { r1:true, ... }
+  exercises   Json?                           // { ex1:true, ... }
+  history     Json?                           // [{ pts, reason, time }] เก็บ 30 รายการล่าสุด
+  ran_input   Boolean  @default(false)
+  updated_at  DateTime @updatedAt
+
+  user        User     @relation(fields: [user_id], references: [id])
+}
+
 model PetState {
   id          Int      @id @default(autoincrement())
   user_id     Int      @unique
@@ -407,7 +553,87 @@ model PetState {
   xp          Int      @default(0)
   stage       String   @default("EGG")
   total_words Int      @default(0)
+  health      String   @default("healthy")   // healthy | sick | injured
+  item_herb   Int      @default(1)           // ยาสมุนไพรเวท
+  item_kit    Int      @default(1)           // ชุดรักษาเวท
+  rest_until  DateTime?                      // พักฟื้นถึงเมื่อไร
+
+  element     String   @default("")          // FIRE | WATER | GRASS | LIGHT | DARK (เลือกครั้งเดียว)
+  atk_lv      Int      @default(1)           // ระดับทักษะการโจมตี
+  atk_xp      Int      @default(0)           // EXP ทักษะโจมตีในเลเวลปัจจุบัน
+  def_lv      Int      @default(1)           // ระดับทักษะป้องกัน (ฝึกด้วยโจทย์การหาร)
+  def_xp      Int      @default(0)
+  eva_lv      Int      @default(1)           // ระดับทักษะหลบหลีก (ฝึกด้วยโจทย์สมการ)
+  eva_xp      Int      @default(0)
+  stamina     Int      @default(5)           // พลังฝึกซ้อม (ฟื้นเองตามเวลา)
+  stamina_at  DateTime?                      // เวลาที่คิด stamina ล่าสุด
+  pvp_wins    Int      @default(0)
+  pvp_losses  Int      @default(0)
+
+  item_snack  Int      @default(0)           // ขนมพิเศษ (+EXP เมื่อใช้)
+  costume     String   @default("")          // ชุดที่ใส่อยู่ ('' = ไม่ใส่)
+  wardrobe    Json?                          // array ของ costume key ที่สะสมได้
+
+  last_sick_at DateTime?                     // ครั้งล่าสุดที่ป่วย — ใช้จับรอบป่วยทุก 2 วัน
+
   updated_at  DateTime @updatedAt
 
   user        User     @relation(fields: [user_id], references: [id])
+}
+
+// ══════════════════════════════════════════
+// BINGO ONLINE
+// ══════════════════════════════════════════
+
+model BingoRoom {
+  id            String    @id @default(uuid())
+  name          String
+  created_by    Int
+  status        String    @default("waiting") // waiting | playing | finished
+  current_round Int       @default(0)
+  total_rounds  Int       @default(3)
+  drawn_numbers Int[]     @default([])
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  rounds        BingoRound[]
+  cards         BingoCard[]
+}
+
+model BingoRound {
+  id            Int       @id @default(autoincrement())
+  room_id       String
+  round_number  Int
+  pattern       String    @default("line")    // line | full | corners | T | L
+  prize         String?
+  is_golden     Boolean   @default(false)
+  drawn_numbers Int[]     @default([])
+  status        String    @default("pending") // pending | active | finished
+  started_at    DateTime?
+  ended_at      DateTime?
+
+  room          BingoRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  winners       BingoWinner[]
+}
+
+model BingoCard {
+  id            Int       @id @default(autoincrement())
+  room_id       String
+  alias         String
+  numbers       Int[]                         // 25 numbers for 5x5 grid
+  created_at    DateTime  @default(now())
+
+  room          BingoRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  wins          BingoWinner[]
+}
+
+model BingoWinner {
+  id            Int         @id @default(autoincrement())
+  round_id      Int
+  card_id       Int
+  alias         String
+  won_at        DateTime    @default(now())
+
+  round         BingoRound  @relation(fields: [round_id], references: [id], onDelete: Cascade)
+  card          BingoCard   @relation(fields: [card_id], references: [id], onDelete: Cascade)
 }

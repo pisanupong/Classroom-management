@@ -9,58 +9,20 @@ classroom-app/
 └── docker-compose.yml
 ```
 
-## VPS Deployment
+## Deployment
 
-**Server:** `root@srv1398976` (IP: 72.62.67.40)
-**App path on VPS:** `/opt/classroom-app`
-**Frontend URL:** `http://72.62.67.40:8081`
-**Backend URL:** `http://72.62.67.40:5000`
+📖 **อ่าน [DEPLOY.md](DEPLOY.md) ก่อนทุกครั้งที่จะ deploy** — มีขั้นตอนเต็ม, ลำดับคำสั่งตอนแก้ prisma schema, และกับดักที่เคยเจอ
 
-Docker service names:
-- `classroom-frontend` — nginx serving built React app (port 8081)
-- `classroom-backend` — Node.js API (port 5000)
+สรุปสั้น ๆ:
 
-## Deploy After Code Changes
-
-### Step 1 — Commit & push from local
-
-```bash
-git add <changed files>
-git commit -m "your message"
-git push origin main
-```
-
-### Step 2 — Pull & rebuild on VPS
-
-**Frontend changes** (anything inside `frontend/`):
-
-```bash
-cd /opt/classroom-app
-git pull origin main
-docker compose build classroom-frontend
-docker compose up -d
-```
-
-**Backend changes** (anything inside `backend/`):
-
-```bash
-cd /opt/classroom-app
-git pull origin main
-docker compose build classroom-backend
-docker compose up -d
-```
-
-**Both changed:**
-
-```bash
-cd /opt/classroom-app
-git pull origin main
-docker compose build
-docker compose up -d
-```
+- **Server:** `root@72.62.67.40` (srv1398976), app อยู่ที่ `/opt/classroom-app`
+- **Frontend:** http://72.62.67.40:8081 (service `classroom-frontend`) — **Backend:** http://72.62.67.40:5000 (service `classroom-backend`)
+- **Deploy ด้วย `scp` ไฟล์ที่แก้ขึ้นไปทับ ไม่ใช่ git** — VPS ผูกกับ repo คนละตัวกับ remote ที่เครื่อง dev (`git pull` บน VPS จะขึ้น `Already up to date` เสมอ)
+- หลัง scp ต้อง `docker compose build --no-cache <services>` แล้วค่อย `up -d` — `up -d` เฉย ๆ ไม่ rebuild
+- **DB คือ `classroom_db` @ `hotel-postgres:5432` บน VPS เท่านั้น** — `DATABASE_URL` ในเครื่อง dev ชี้ Supabase ที่ตายแล้ว คำสั่ง prisma จาก local จะได้ `P1001` เสมอ ต้องรันผ่าน `docker compose run --rm classroom-backend npx prisma db push` บน VPS และใช้ `db push` **ห้ามใช้ `migrate dev`** (จะขอ reset DB)
 
 ## Important Notes
 
-- `docker compose up -d` alone does NOT rebuild — always run `build` first when code changes
-- The old service name was wrong; correct names are `classroom-frontend` and `classroom-backend` (use `docker compose config --services` to verify)
+- ตรวจชื่อ service ด้วย `docker compose config --services`
 - Tailwind breakpoints: use `md:` (768px) for mobile/desktop splits, NOT `sm:` (640px) — some phones have CSS width ≥640px
+- PowerShell 5.1 บนเครื่อง dev ไม่รองรับ `&&` — ใช้ `;` คั่นคำสั่งฝั่ง local

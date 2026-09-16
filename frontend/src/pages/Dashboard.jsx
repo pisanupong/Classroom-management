@@ -279,8 +279,12 @@ const Dashboard = () => {
     { path: '/treasury',      icon: '💰', label: 'เงินห้อง',    permKey: 'treasury'       },
     { path: '/rewards',       icon: '🎁', label: 'ของรางวัล',   permKey: 'rewards'        },
     { path: '/vocab-battle',  icon: '⚔️', label: 'Vocab Battle', permKey: 'vocab_battle'  },
+    { path: '/game',          icon: '🎮', label: 'Quiz Rumble',  permKey: 'quiz'           },
+    { path: '/bingo',         icon: '🎱', label: 'Bingo Online', permKey: 'quiz'           },
     { path: '/leaderboard',   icon: '🕹️', label: 'Ranking',     permKey: 'leaderboard'   },
     { path: '/pet',           icon: '🐾', label: 'สัตว์เลี้ยง',  permKey: 'pet'            },
+    { path: '/python',        icon: '🐍', label: 'Python',       permKey: 'python'         },
+    { path: '/practice',      icon: '🧪', label: 'วิเคราะห์การเรียนรู้', permKey: 'practice' },
   ].filter(n => {
     if (n.roles) return n.roles.includes(user?.role);
     const perm = mp[n.permKey];

@@ -30,25 +30,29 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     const res = await api.post('/users/login', { username, password });
     localStorage.setItem('token', res.data.token);
-    setUser({
-      id: res.data.id,
-      username: res.data.username,
-      role: res.data.role,
-      name: res.data.name,
-    });
+    const { token, ...profile } = res.data;
+    setUser(profile);
     return res.data;
   };
 
   const register = async (userData) => {
     const res = await api.post('/users/register', userData);
     localStorage.setItem('token', res.data.token);
-    setUser({
-      id: res.data.id,
-      username: res.data.username,
-      role: res.data.role,
-      name: res.data.name,
-    });
+    const { token, ...profile } = res.data;
+    setUser(profile);
     return res.data;
+  };
+
+  // แก้ user ในหน่วยความจำทันทีหลังบันทึก (เช่น ตัวละครที่แก้ในหน้าตัวละคร)
+  const updateUser = (patch) => setUser(u => (u ? { ...u, ...patch } : u));
+
+  // ดึงโปรไฟล์ล่าสุดจากเซิร์ฟเวอร์
+  const refreshUser = async () => {
+    try {
+      const res = await api.get('/users/me');
+      setUser(res.data);
+      return res.data;
+    } catch { return null; }
   };
 
   const logout = () => {
@@ -57,7 +61,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

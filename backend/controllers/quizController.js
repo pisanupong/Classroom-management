@@ -1,4 +1,6 @@
 const prisma = require('../config/db');
+const { rollLoot } = require('../utils/petLoot');
+const { ingestQuizAttempt } = require('../utils/practiceEngine');
 
 // Fisher-Yates shuffle
 const shuffle = (arr) => {
@@ -195,13 +197,61 @@ const submitQuiz = async (req, res) => {
       data: { total_points: { increment: earnedPoints } },
     });
 
+    // ── ของรางวัลสุ่มสำหรับสัตว์เลี้ยง ──
+    let rewards = [];
+    try {
+      const pct = quiz.questions.length ? (correct / quiz.questions.length) * 100 : 0;
+      const state = await prisma.petState.findUnique({ where: { user_id: req.user.id } });
+      if (state && state.pet_type) {
+        const owned = Array.isArray(state.wardrobe) ? state.wardrobe : [];
+        rewards = rollLoot(pct, owned);
+
+        if (rewards.length) {
+          const add = { herb: 0, kit: 0, snack: 0 };
+          const newCostumes = [];
+          rewards.forEach(r => {
+            if (r.type === 'costume') newCostumes.push(r.key);
+            else add[r.type] = (add[r.type] || 0) + (r.amount || 1);
+          });
+
+          await prisma.petState.update({
+            where: { user_id: req.user.id },
+            data: {
+              item_herb:  Math.min(99, state.item_herb + add.herb),
+              item_kit:   Math.min(99, state.item_kit + add.kit),
+              item_snack: Math.min(99, (state.item_snack || 0) + add.snack),
+              ...(newCostumes.length ? { wardrobe: [...owned, ...newCostumes] } : {}),
+            },
+          });
+        }
+      }
+    } catch (lootErr) {
+      console.error('quiz loot failed for user', req.user.id, '→', lootErr.message);
+      rewards = [];
+    }
+
+    // ── ป้อนข้อมูลเข้าระบบวิเคราะห์การเรียนรู้ (เฉพาะข้อที่ครู import เข้าคลังแล้ว) ──
+    let analytics = { ingested: 0 };
+    try {
+      analytics = await ingestQuizAttempt({
+        userId: req.user.id,
+        questions: quiz.questions,
+        answers,
+        timeTakenSec: time_taken || 0,
+      });
+    } catch (aErr) {
+      console.error('quiz analytics ingest failed for user', req.user.id, '→', aErr.message);
+    }
+
     res.json({
       attempt_id: attempt.id,
       correct,
       total: quiz.questions.length,
+      analytics,
       score: earnedPoints,
       points_per_q: quiz.points_per_q,
       result,
+      rewards,
     });
   } catch (error) {
     console.error(error);

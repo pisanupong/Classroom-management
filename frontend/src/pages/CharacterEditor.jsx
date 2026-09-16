@@ -605,7 +605,7 @@ const SlotPreview = React.memo(function SlotPreview({c}){
 
 /* ===== MAIN COMPONENT ===== */
 const CharacterEditor = () => {
-  const { user } = useContext(AuthContext);
+  const { user, updateUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [cfg, setCfg] = useState(()=>({...DEFAULT_CFG}));
@@ -620,8 +620,13 @@ const CharacterEditor = () => {
   const tickRef = useRef(0);
   const loopRef = useRef(null);
 
+  // โหลดตัวละครที่บันทึกไว้ครั้งเดียวตอนที่ข้อมูลผู้ใช้มาถึง
+  // (ถ้าผูกกับ user ทั้งก้อน การอัปเดต context หลังบันทึกจะเขียนทับสิ่งที่กำลังแก้อยู่)
+  const loadedCfg = useRef(false);
   useEffect(()=>{
+    if(loadedCfg.current) return;
     if(user?.character_data && user.character_data.skin){
+      loadedCfg.current = true;
       setCfg(prev=>({...DEFAULT_CFG,...user.character_data,anim:prev.anim,dir:prev.dir,zoom:prev.zoom,speed:prev.speed}));
     }
   },[user]);
@@ -668,16 +673,26 @@ const CharacterEditor = () => {
 
   const update = useCallback((key,val)=>setCfg(c=>({...c,[key]:val})),[]);
 
-  const showFlash = (msg)=>{ setFlashMsg(msg); setTimeout(()=>setFlashMsg(''),2000); };
+  const showFlash = (msg,ms=2000)=>{ setFlashMsg(msg); setTimeout(()=>setFlashMsg(''),ms); };
 
   const handleSave = async ()=>{
     setSaving(true);
     try{
       const payload={...cfg};
       delete payload.anim; delete payload.dir; delete payload.zoom; delete payload.speed;
-      await api.put('/users/me/character', payload);
+      const res = await api.put('/users/me/character', payload);
+      // อัปเดต user ใน context ทันที เพื่อให้หน้าอื่น (แดชบอร์ด/แชท/อันดับ) เห็นตัวละครใหม่เลย
+      loadedCfg.current = true;
+      updateUser?.({ character_data: res?.data?.character_data ?? payload });
       showFlash('บันทึกสำเร็จ ✅');
-    }catch{ showFlash('เกิดข้อผิดพลาด ❌'); }
+    }catch(err){
+      console.error('save character failed:', err);
+      const st = err?.response?.status;
+      const msg = st === 401 || st === 403 ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ ❌'
+        : st ? `บันทึกไม่สำเร็จ (${st}) ${err?.response?.data?.message || ''} ❌`
+        : `เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ${err?.message || 'unknown'} ❌`;
+      showFlash(msg, 6000);
+    }
     finally{ setSaving(false); }
   };
 
@@ -994,3 +1009,6 @@ const CharacterEditor = () => {
 };
 
 export default CharacterEditor;
+
+/* ใช้ซ้ำโดยหน้าอื่น (เช่น GamePlay) เพื่อวาดตัวละครจริงของผู้เล่น */
+export { buildFrame, paintGrid, S as SPRITE_SIZE, DEFAULT_CFG as DEFAULT_CHAR_CFG };
