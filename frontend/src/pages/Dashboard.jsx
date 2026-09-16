@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import api from '../services/api';
+import { APP_VERSION } from '../version';
 
 // ─── ChangePasswordModal ─────────────────────────────────────────────────────
 const ChangePasswordModal = ({ onClose }) => {
@@ -376,6 +377,7 @@ const Dashboard = () => {
             className="px-3 py-1.5 rounded-lg text-sm font-medium text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20">
             ออก
           </button>
+          <span className="hidden md:block text-[10px] text-white/20 select-none">v{APP_VERSION}</span>
         </div>
       </nav>
 
@@ -415,6 +417,7 @@ const Dashboard = () => {
                 ออกจากระบบ
               </button>
             </div>
+            <p className="text-center text-[10px] text-white/20 pb-3 select-none">v{APP_VERSION}</p>
           </div>
         </div>
       )}
