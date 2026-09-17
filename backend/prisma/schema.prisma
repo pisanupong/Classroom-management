@@ -85,6 +85,7 @@ model User {
   practice_items    PracticeItem[]    @relation("PracticeItemAuthor")
   practice_attempts PracticeAttempt[]
   mastery_states    MasteryState[]
+  prize_inventory   BingoPrizeInventory[] @relation("PrizeInventoryOwner")
 }
 
 /* ═══════════ ระบบวิเคราะห์การเรียนรู้ (Learning Analytics) ═══════════ */
@@ -599,7 +600,6 @@ model BingoRoom {
 
   rounds        BingoRound[]
   cards         BingoCard[]
-  prize_inventory BingoPrizeInventory[] @relation("PrizeInventoryOwner")
 }
 
 model BingoRound {
