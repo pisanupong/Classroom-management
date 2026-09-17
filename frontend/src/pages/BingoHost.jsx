@@ -537,6 +537,11 @@ export default function BingoHost() {
               color: '#818cf8', background: 'rgba(99,102,241,0.1)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
             📺 Display
           </button>
+          <button onClick={() => window.open(`/bingo/pr/${id}`, '_blank')}
+            style={{ padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(212,175,55,0.5)',
+              color: '#d4af37', background: 'rgba(212,175,55,0.08)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+            📢 PR
+          </button>
           <button onClick={() => { if (window.confirm('จบเกมเลยไหม?')) socketRef.current?.emit('bingo:end_game', { roomId: id }); }}
             style={{ padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.4)',
               color: '#f87171', background: 'transparent', cursor: 'pointer', fontSize: '12px' }}>

@@ -179,6 +179,11 @@ export default function BingoLobby() {
                         style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}>
                         🎲 เล่น
                       </button>
+                      <button onClick={() => window.open(`/bingo/pr/${room.id}`, '_blank')}
+                        className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]"
+                        style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.35)', color: '#d4af37' }}>
+                        📢 ประชาสัมพันธ์
+                      </button>
                       {isTeacher && (
                         <button onClick={() => deleteRoom(room.id)}
                           className="px-3 py-1.5 rounded-xl text-xs border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors">
