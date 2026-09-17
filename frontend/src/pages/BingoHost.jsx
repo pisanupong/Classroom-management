@@ -45,8 +45,7 @@ export default function BingoHost() {
   const [displayFormat, setDisplayFormat] = useState('grid'); // 'grid' | 'list' | 'columns'
   const [portraitWarn,  setPortraitWarn]  = useState(false);
   const [gameEnded,     setGameEnded]     = useState(false);
-
-  const playerUrl = `${window.location.origin}/bingo/play/${id}`;
+  const [sellModal,     setSellModal]     = useState({ open: false, alias: '', loading: false });
 
   // Portrait detection
   useEffect(() => {
@@ -183,6 +182,69 @@ export default function BingoHost() {
     setEditPrizes(false);
   };
 
+  // ── Print Bingo card ──────────────────────────────────────────
+  const printBingoCard = (alias, numbers, roundNum, prize) => {
+    const rows = Array.from({ length: 5 }, (_, r) =>
+      Array.from({ length: 5 }, (_, c) => numbers[r * 5 + c])
+    );
+    const colColors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+    const win = window.open('', '_blank', 'width=420,height=560');
+    win.document.write(`<!DOCTYPE html><html><head><title>Bingo — ${alias}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI',sans-serif;background:#fff;padding:12px}
+      .header{text-align:center;margin-bottom:10px}
+      .room{font-size:13px;color:#555}
+      .rp{font-size:12px;color:#d97706;font-weight:700;margin:3px 0}
+      .alias{font-size:22px;font-weight:900;color:#1e1b4b;margin:4px 0}
+      .price{font-size:13px;color:#059669;font-weight:700}
+      table{border-collapse:collapse;width:100%;margin-top:8px}
+      th,td{border:2px solid #333;text-align:center;width:20%}
+      th{padding:8px 4px;font-size:22px;font-weight:900;color:#fff}
+      td{padding:12px 4px;font-size:22px;font-weight:700;color:#1e1b4b}
+      .free{background:#fef3c7;color:#d97706;font-size:13px;font-weight:900}
+      .print-btn{width:100%;padding:10px;margin-bottom:10px;font-size:14px;cursor:pointer;
+        background:#7c3aed;color:white;border:none;border-radius:8px;font-weight:700}
+      @media print{.print-btn{display:none}}
+    </style></head><body>
+    <div class="header">
+      <div class="room">🎱 ${room.name}</div>
+      ${roundNum ? `<div class="rp">รอบที่ ${roundNum}${prize ? ` — 🎁 ${prize}` : ''}</div>` : ''}
+      <div class="alias">${alias}</div>
+      ${room.ticket_price > 0 ? `<div class="price">฿${Number(room.ticket_price).toLocaleString('th-TH')}</div>` : ''}
+    </div>
+    <button class="print-btn" onclick="window.print()">🖨️ พิมพ์บัตร</button>
+    <table>
+      <thead><tr>${['B','I','N','G','O'].map((c,i)=>`<th style="background:${colColors[i]}">${c}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(row=>`<tr>${row.map(n=>n===0?'<td class="free">FREE</td>':`<td>${n}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>
+    </body></html>`);
+    win.document.close();
+  };
+
+  // ── Sell ticket ───────────────────────────────────────────────
+  const sellTicket = async () => {
+    if (!sellModal.alias.trim()) return;
+    setSellModal(s => ({ ...s, loading: true }));
+    try {
+      const r = await api.post(`/bingo/rooms/${id}/join`, {
+        alias: sellModal.alias.trim(),
+        roundId: activeRound?.id || null,
+      });
+      const card = r.data.card;
+      printBingoCard(
+        sellModal.alias.trim(),
+        card.numbers,
+        activeRound?.round_number || null,
+        activeRound?.prize || null,
+      );
+      setSellModal({ open: false, alias: '', loading: false });
+    } catch (e) {
+      alert(e.response?.data?.message || 'เกิดข้อผิดพลาด');
+      setSellModal(s => ({ ...s, loading: false }));
+    }
+  };
+
   if (!room) return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', color: '#fff' }}>
       <div style={{ fontSize: '20px', animation: 'pulse 1s infinite' }}>⏳ กำลังโหลด...</div>
@@ -190,6 +252,10 @@ export default function BingoHost() {
   );
 
   const activeRound = rounds[activeRoundIdx];
+  // QR URL changes per round so each round generates a fresh player URL
+  const playerUrl = activeRound?.id
+    ? `${window.location.origin}/bingo/play/${id}?round=${activeRound.id}`
+    : `${window.location.origin}/bingo/play/${id}`;
 
   /* ── Number display components ─────────────────────────────── */
 
@@ -447,6 +513,17 @@ export default function BingoHost() {
             <span style={{ color: 'rgba(52,211,153,0.6)', fontSize: '11px', fontWeight: 400 }}>ผู้เล่น</span>
           </div>
 
+          {/* Ticket price */}
+          {room.ticket_price > 0 && (
+            <div style={{
+              padding: '4px 12px', borderRadius: '999px', fontSize: '13px', fontWeight: 700,
+              background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+              color: '#fbbf24',
+            }}>
+              🎫 ฿{Number(room.ticket_price).toLocaleString('th-TH')} / ใบ
+            </div>
+          )}
+
           <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>
             รอบ {activeRoundIdx + 1}/{rounds.length}
           </span>
@@ -516,6 +593,17 @@ export default function BingoHost() {
               </button>
             )}
           </div>
+
+          {/* Sell ticket button */}
+          <button
+            onClick={() => setSellModal({ open: true, alias: '', loading: false })}
+            style={{
+              width: '100%', padding: '9px', borderRadius: '12px', fontWeight: 700, fontSize: '13px',
+              cursor: 'pointer', border: '1px solid rgba(251,191,36,0.4)',
+              background: 'rgba(251,191,36,0.1)', color: '#fbbf24',
+            }}>
+            🎫 ขายบัตร{room.ticket_price > 0 ? ` (฿${Number(room.ticket_price).toLocaleString('th-TH')})` : ''}
+          </button>
 
           {/* QR Code — hidden when drawing numbers */}
           {roundStatus !== 'active' && (
@@ -646,6 +734,48 @@ export default function BingoHost() {
           {displayFormat === 'list'    && <ListView />}
           {displayFormat === 'columns' && <ColumnsDisplay />}
         </div>
+
+        {/* ── Sell Ticket Modal ── */}
+        {sellModal.open && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+          }} onClick={e => e.target === e.currentTarget && setSellModal(s => ({ ...s, open: false }))}>
+            <div style={{ width: '320px', borderRadius: '20px', padding: '24px', background: 'rgba(15,23,42,0.98)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <h3 style={{ margin: '0 0 6px', fontSize: '18px', fontWeight: 900 }}>🎫 ขายบัตร Bingo</h3>
+              <p style={{ margin: '0 0 16px', fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>
+                {activeRound ? `รอบที่ ${activeRound.round_number}${activeRound.prize ? ` — 🎁 ${activeRound.prize}` : ''}` : 'ก่อนเริ่มรอบ'}
+                {room.ticket_price > 0 && <span style={{ color: '#fbbf24', fontWeight: 700 }}> · ฿{Number(room.ticket_price).toLocaleString('th-TH')}</span>}
+              </p>
+              <label style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                รหัสนักเรียน / ชื่อ
+              </label>
+              <input
+                autoFocus
+                value={sellModal.alias}
+                onChange={e => setSellModal(s => ({ ...s, alias: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && sellTicket()}
+                placeholder="เช่น 12345"
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: '12px', fontSize: '20px', fontWeight: 800,
+                  textAlign: 'center', letterSpacing: '2px', color: '#fff', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.08)', border: '2px solid rgba(255,255,255,0.15)',
+                  outline: 'none', marginBottom: '14px',
+                }}
+              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => setSellModal(s => ({ ...s, open: false }))}
+                  style={{ flex: 1, padding: '10px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '13px' }}>
+                  ยกเลิก
+                </button>
+                <button onClick={sellTicket} disabled={sellModal.loading || !sellModal.alias.trim()}
+                  style={{ flex: 2, padding: '10px', borderRadius: '12px', fontWeight: 700, fontSize: '14px', border: 'none', cursor: sellModal.loading || !sellModal.alias.trim() ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', opacity: sellModal.loading || !sellModal.alias.trim() ? 0.5 : 1 }}>
+                  {sellModal.loading ? '⏳ กำลังสร้าง...' : '🖨️ สร้างและพิมพ์'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── RIGHT: Rounds list + Prize editor ── */}
         <div style={{ width: '220px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>

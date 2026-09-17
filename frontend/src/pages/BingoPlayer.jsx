@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import api from '../services/api';
 import { APP_VERSION } from '../version';
@@ -31,6 +31,9 @@ const STORAGE_KEY = (roomId) => `bingo_${roomId}_studentId`;
 
 export default function BingoPlayer() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  // ?round=ID allows QR to be round-specific; passed as initial roundId on join
+  const urlRoundId = searchParams.get('round') ? parseInt(searchParams.get('round')) : null;
   const socketRef = useRef(null);
 
   const [phase, setPhase] = useState('join');
@@ -88,10 +91,10 @@ export default function BingoPlayer() {
     return () => clearInterval(timer);
   }, [phase, id, studentId]);
 
-  // Auto-rejoin
+  // Auto-rejoin (pass urlRoundId so returning players re-join the right round)
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY(id));
-    if (saved) { setStudentId(saved); doJoin(saved); }
+    if (saved) { setStudentId(saved); doJoin(saved, urlRoundId); }
   }, [id]);
 
   const doJoin = useCallback(async (sid, roundId = null) => {
@@ -179,14 +182,14 @@ export default function BingoPlayer() {
         <input
           value={studentId} onChange={e => setStudentId(e.target.value)} autoFocus
           placeholder="เช่น 12345"
-          onKeyDown={e => e.key === 'Enter' && doJoin(studentId)}
+          onKeyDown={e => e.key === 'Enter' && doJoin(studentId, urlRoundId)}
           style={{ width:'100%', padding:'14px 16px', borderRadius:'16px', textAlign:'center',
             fontSize:'24px', fontWeight:800, color:'#fff', letterSpacing:'2px',
             background:'rgba(255,255,255,0.08)', border:'2px solid rgba(255,255,255,0.15)',
             outline:'none', boxSizing:'border-box', marginBottom:'12px' }}
         />
         {joinErr && <p style={{ color:'#f87171', textAlign:'center', fontSize:'13px', marginBottom:'8px' }}>{joinErr}</p>}
-        <button onClick={() => doJoin(studentId)} disabled={joining || !studentId.trim()}
+        <button onClick={() => doJoin(studentId, urlRoundId)} disabled={joining || !studentId.trim()}
           style={{ width:'100%', padding:'14px', borderRadius:'16px', fontWeight:900,
             fontSize:'16px', color:'#fff', border:'none', cursor:'pointer',
             background: joining || !studentId.trim() ? 'rgba(255,255,255,0.15)' : 'linear-gradient(135deg,#7c3aed,#db2777)',
