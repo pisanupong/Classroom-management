@@ -252,9 +252,13 @@ export default function BingoHost() {
   );
 
   const activeRound = rounds[activeRoundIdx];
-  // QR URL changes per round so each round generates a fresh player URL
-  const playerUrl = activeRound?.id
-    ? `${window.location.origin}/bingo/play/${id}?round=${activeRound.id}`
+  // When current round ends → QR immediately points to NEXT round
+  // so players can scan & receive their new card before host clicks "เริ่มรอบ"
+  const qrRound = roundStatus === 'finished'
+    ? (rounds[activeRoundIdx + 1] || null)   // next round
+    : activeRound;                             // current (pending/active) round
+  const playerUrl = qrRound?.id
+    ? `${window.location.origin}/bingo/play/${id}?round=${qrRound.id}`
     : `${window.location.origin}/bingo/play/${id}`;
 
   /* ── Number display components ─────────────────────────────── */
@@ -607,12 +611,22 @@ export default function BingoHost() {
 
           {/* QR Code — hidden when drawing numbers */}
           {roundStatus !== 'active' && (
-            <div style={{ borderRadius: '16px', padding: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
-              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', margin: '0 0 8px', letterSpacing: '1px', textTransform: 'uppercase' }}>สแกนเพื่อเล่น</p>
+            <div style={{ borderRadius: '16px', padding: '12px', textAlign: 'center', border: `1px solid ${roundStatus === 'finished' && qrRound ? 'rgba(96,165,250,0.35)' : 'rgba(255,255,255,0.08)'}`, background: roundStatus === 'finished' && qrRound ? 'rgba(96,165,250,0.06)' : 'rgba(255,255,255,0.04)' }}>
+              <p style={{ fontSize: '10px', margin: '0 0 6px', letterSpacing: '1px', textTransform: 'uppercase',
+                color: roundStatus === 'finished' && qrRound ? '#60a5fa' : 'rgba(255,255,255,0.35)' }}>
+                {roundStatus === 'finished' && qrRound
+                  ? `▶ สแกนรอบที่ ${qrRound.round_number}`
+                  : 'สแกนเพื่อเล่น'}
+              </p>
               <div style={{ display: 'inline-block', padding: '10px', borderRadius: '12px', background: '#fff' }}>
                 <QRCodeSVG value={playerUrl} size={140} />
               </div>
-              <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', marginTop: '6px', wordBreak: 'break-all' }}>{playerUrl}</p>
+              {roundStatus === 'finished' && qrRound && (
+                <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#60a5fa', fontWeight: 700 }}>
+                  ผู้เล่นได้ใบใหม่ทันทีที่สแกน
+                </p>
+              )}
+              <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', marginTop: '4px', wordBreak: 'break-all' }}>{playerUrl}</p>
             </div>
           )}
 
