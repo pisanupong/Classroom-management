@@ -74,6 +74,8 @@ jobs:
           script: |
             echo "=== copy new backend into container ==="
             docker cp /opt/classroom-app/backend/. classroom-backend:/app/
+            echo "=== regenerate prisma client ==="
+            docker exec classroom-backend npx prisma generate
             echo "=== apply prisma schema (db push) ==="
             docker exec classroom-backend npx prisma db push --accept-data-loss || echo "db push skipped (may not have changed)"
             echo "=== restart backend ==="
