@@ -76,7 +76,7 @@ function App() {
             <Route path="/bingo/host/:id" element={<ProtectedRoute><BingoHost /></ProtectedRoute>} />
             <Route path="/bingo/play/:id" element={<BingoPlayer />} />
             <Route path="/bingo/display/:id" element={<BingoDisplay />} />
-            <Route path="/bingo/account/:id" element={<ProtectedRoute><BingoAccount /></ProtectedRoute>} />
+            <Route path="/bingo/account" element={<ProtectedRoute><BingoAccount /></ProtectedRoute>} />
           </Routes>
         </Router>
       </SettingsProvider>

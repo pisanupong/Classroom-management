@@ -26,14 +26,15 @@ export default function BingoLobby() {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [prizes, setPrizes] = useState([]);
 
   const [form, setForm] = useState({
     name: '',
     total_rounds: 3,
     rounds_config: [
-      { pattern: 'line',    prize: '', is_golden: false },
-      { pattern: 'line',    prize: '', is_golden: false },
-      { pattern: 'full',    prize: '', is_golden: true  },
+      { pattern: 'line', prize: '', is_golden: false, prize_inventory_id: null },
+      { pattern: 'line', prize: '', is_golden: false, prize_inventory_id: null },
+      { pattern: 'full', prize: '', is_golden: true,  prize_inventory_id: null },
     ],
   });
   const [creating, setCreating] = useState(false);
@@ -44,12 +45,17 @@ export default function BingoLobby() {
     api.get('/bingo/rooms').then(r => setRooms(r.data)).catch(() => {}).finally(() => setLoading(false));
   };
 
+  const openCreate = () => {
+    if (isTeacher) api.get('/bingo/prizes').then(r => setPrizes(r.data)).catch(() => {});
+    setShowCreate(true);
+  };
+
   useEffect(() => { load(); }, []);
 
   const updateRoundsCount = (count) => {
     const n = Math.max(1, Math.min(10, parseInt(count) || 1));
     const current = form.rounds_config;
-    const newConfig = Array.from({ length: n }, (_, i) => current[i] || { pattern: 'line', prize: '', is_golden: false });
+    const newConfig = Array.from({ length: n }, (_, i) => current[i] || { pattern: 'line', prize: '', is_golden: false, prize_inventory_id: null });
     setForm(f => ({ ...f, total_rounds: n, rounds_config: newConfig }));
   };
 
@@ -88,11 +94,18 @@ export default function BingoLobby() {
           <h1 className="text-xl font-black">🎱 Bingo Online</h1>
         </div>
         {isTeacher && (
-          <button onClick={() => setShowCreate(true)}
-            className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
-            style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
-            ➕ สร้างห้องใหม่
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/bingo/account')}
+              className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
+              style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }}>
+              💰 คลังรางวัล
+            </button>
+            <button onClick={openCreate}
+              className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
+              ➕ สร้างห้องใหม่
+            </button>
+          </div>
         )}
       </div>
 
@@ -155,13 +168,6 @@ export default function BingoLobby() {
                         🎲 เล่น
                       </button>
                       {isTeacher && (
-                        <button onClick={() => navigate(`/bingo/account/${room.id}`)}
-                          className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]"
-                          style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399' }}>
-                          💰 บัญชี
-                        </button>
-                      )}
-                      {isTeacher && (
                         <button onClick={() => deleteRoom(room.id)}
                           className="px-3 py-1.5 rounded-xl text-xs border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors">
                           🗑️ ลบ
@@ -216,26 +222,56 @@ export default function BingoLobby() {
                         ⚡ รอบนาทีทอง
                       </label>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs text-white/30 block mb-1">รูปแบบชนะ</label>
-                        <select value={rnd.pattern}
-                          onChange={e => setForm(f => {
-                            const c = [...f.rounds_config];
-                            c[i] = { ...c[i], pattern: e.target.value };
-                            return { ...f, rounds_config: c };
-                          })}
-                          className="w-full px-2 py-1.5 rounded-lg bg-white/10 border border-white/10 text-sm text-white focus:outline-none"
-                          style={{ colorScheme: 'dark' }}>
-                          {PATTERN_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: '#0f172a' }}>{o.label}</option>)}
-                        </select>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-white/30 block mb-1">รูปแบบชนะ</label>
+                          <select value={rnd.pattern}
+                            onChange={e => setForm(f => {
+                              const c = [...f.rounds_config];
+                              c[i] = { ...c[i], pattern: e.target.value };
+                              return { ...f, rounds_config: c };
+                            })}
+                            className="w-full px-2 py-1.5 rounded-lg bg-white/10 border border-white/10 text-sm text-white focus:outline-none"
+                            style={{ colorScheme: 'dark' }}>
+                            {PATTERN_OPTIONS.map(o => <option key={o.value} value={o.value} style={{ background: '#0f172a' }}>{o.label}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-white/30 block mb-1">เลือกจากคลัง</label>
+                          <select
+                            value={rnd.prize_inventory_id || ''}
+                            onChange={e => {
+                              const selId = e.target.value ? parseInt(e.target.value) : null;
+                              const selPrize = prizes.find(p => p.id === selId);
+                              setForm(f => {
+                                const c = [...f.rounds_config];
+                                c[i] = {
+                                  ...c[i],
+                                  prize_inventory_id: selId,
+                                  prize: selPrize ? selPrize.name : c[i].prize,
+                                };
+                                return { ...f, rounds_config: c };
+                              });
+                            }}
+                            className="w-full px-2 py-1.5 rounded-lg bg-white/10 border border-white/10 text-sm text-white focus:outline-none"
+                            style={{ colorScheme: 'dark' }}>
+                            <option value="" style={{ background: '#0f172a' }}>-- ไม่ระบุ --</option>
+                            {prizes.map(p => (
+                              <option key={p.id} value={p.id} style={{ background: '#0f172a' }}
+                                disabled={p.remaining === 0}>
+                                {p.name} ({p.remaining} เหลือ){p.remaining === 0 ? ' ❌' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                       <div>
-                        <label className="text-xs text-white/30 block mb-1">ของรางวัล</label>
+                        <label className="text-xs text-white/30 block mb-1">ของรางวัล (ชื่อ)</label>
                         <input value={rnd.prize}
                           onChange={e => setForm(f => {
                             const c = [...f.rounds_config];
-                            c[i] = { ...c[i], prize: e.target.value };
+                            c[i] = { ...c[i], prize: e.target.value, prize_inventory_id: null };
                             return { ...f, rounds_config: c };
                           })}
                           placeholder="เช่น ดินสอ 1 แท่ง"

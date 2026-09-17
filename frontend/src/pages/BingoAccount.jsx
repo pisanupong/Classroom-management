@@ -1,378 +1,253 @@
-/**
- * BingoAccount — หน้าบัญชีรายรับ-รายจ่าย Bingo
- * Protected page (ต้อง login)
- * URL: /bingo/account/:id
- */
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useContext, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 
 const fmt = (n) =>
-  n === 0 ? '฿0' : `฿${Number(n).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-
-const PATTERN_LABEL = {
-  line:    'เส้นตรง',
-  full:    'เต็มบอร์ด',
-  corners: '4 มุม',
-  T:       'ตัว T',
-  L:       'ตัว L',
-};
+  `฿${Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 export default function BingoAccount() {
-  const { id } = useParams();
+  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [prizes, setPrizes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: '', value: '', quantity: '' });
+  const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [editData, setEditData] = useState({});
 
-  const [room,         setRoom]         = useState(null);
-  const [rounds,       setRounds]       = useState([]);
-  const [totalPlayers, setTotalPlayers] = useState(0);
-  const [loading,      setLoading]      = useState(true);
+  const load = () => {
+    setLoading(true);
+    api.get('/bingo/prizes')
+      .then(r => setPrizes(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
 
-  // Editable states
-  const [editTicket,   setEditTicket]   = useState(false);
-  const [ticketDraft,  setTicketDraft]  = useState('');
-  const [saving,       setSaving]       = useState(false);
-
-  // prize_value editing (per round)
-  const [editPrize,    setEditPrize]    = useState(false);
-  const [prizeDraft,   setPrizeDraft]   = useState([]);
-
-  useEffect(() => {
-    api.get(`/bingo/rooms/${id}`).then(r => {
-      setRoom(r.data);
-      setRounds(r.data.rounds || []);
-      setTotalPlayers(r.data._count?.cards || 0);
-      setTicketDraft(String(r.data.ticket_price || 0));
-      setPrizeDraft((r.data.rounds || []).map(rnd => ({
-        id:          rnd.id,
-        prize_value: String(rnd.prize_value || 0),
-      })));
-    }).finally(() => setLoading(false));
-  }, [id]);
-
-  const saveTicketPrice = async () => {
+  const addPrize = async (e) => {
+    e.preventDefault();
     setSaving(true);
     try {
-      const r = await api.patch(`/bingo/rooms/${id}`, { ticket_price: parseFloat(ticketDraft) || 0 });
-      setRoom(r.data);
-      setEditTicket(false);
-    } catch {} finally { setSaving(false); }
+      await api.post('/bingo/prizes', form);
+      setForm({ name: '', value: '', quantity: '' });
+      setShowAdd(false);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || 'เกิดข้อผิดพลาด');
+    } finally { setSaving(false); }
   };
 
-  const savePrizeValues = async () => {
-    setSaving(true);
+  const saveEdit = async (id) => {
     try {
-      await api.put(`/bingo/rooms/${id}/rounds`, {
-        rounds: prizeDraft.map(p => ({ id: p.id, prize_value: parseFloat(p.prize_value) || 0 })),
-      });
-      // Update local rounds
-      setRounds(prev => prev.map(r => {
-        const d = prizeDraft.find(p => p.id === r.id);
-        return d ? { ...r, prize_value: parseFloat(d.prize_value) || 0 } : r;
-      }));
-      setEditPrize(false);
-    } catch {} finally { setSaving(false); }
+      await api.put(`/bingo/prizes/${id}`, editData);
+      setEditId(null);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || 'เกิดข้อผิดพลาด');
+    }
   };
 
-  if (loading) return (
-    <div style={{ minHeight: '100dvh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-      <div style={{ fontSize: '20px' }}>⏳ กำลังโหลด...</div>
-    </div>
-  );
+  const deletePrize = async (id) => {
+    if (!window.confirm('ลบรายการนี้?')) return;
+    await api.delete(`/bingo/prizes/${id}`);
+    load();
+  };
 
-  if (!room) return (
-    <div style={{ minHeight: '100dvh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-      <div>ไม่พบข้อมูล</div>
-    </div>
-  );
-
-  const ticketPrice = room.ticket_price || 0;
-
-  // Compute per-round financials
-  const roundData = rounds.map(rnd => {
-    const winnersCount = rnd.winners?.length || 0;
-    const prizeValue   = rnd.prize_value || 0;
-    const revenue      = ticketPrice * totalPlayers;     // revenue same across rounds (one-time ticket)
-    const payout       = prizeValue * winnersCount;
-    return { ...rnd, winnersCount, prizeValue, revenue, payout };
-  });
-
-  const totalRevenue = ticketPrice * totalPlayers;       // total ticket revenue for the whole game
-  const totalPayout  = roundData.reduce((s, r) => s + r.payout, 0);
-  const netProfit    = totalRevenue - totalPayout;
-
-  const FF = "'Segoe UI',sans-serif";
-  const BG = 'linear-gradient(135deg,#0f172a,#1e1b4b)';
+  const totalValue    = prizes.reduce((s, p) => s + p.value * p.quantity, 0);
+  const totalQty      = prizes.reduce((s, p) => s + p.quantity, 0);
+  const totalRemaining = prizes.reduce((s, p) => s + p.remaining, 0);
+  const totalUsed     = prizes.reduce((s, p) => s + (p.quantity - p.remaining), 0);
 
   return (
-    <div style={{ minHeight: '100dvh', background: BG, color: '#fff', fontFamily: FF }}>
-
-      {/* ── Header ── */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '12px 20px',
-        background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(12px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button onClick={() => navigate(`/bingo/host/${id}`)}
-            style={{ color: 'rgba(255,255,255,0.35)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px' }}>
-            ← กลับ
-          </button>
-          <span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span>
-          <span style={{ fontWeight: 700, fontSize: '16px' }}>💰 บัญชี — {room.name}</span>
+    <div className="min-h-screen text-white" style={{ background: 'linear-gradient(135deg,#0f172a,#1e1b4b)', fontFamily: "'Segoe UI',sans-serif" }}>
+      {/* Header */}
+      <div className="border-b border-white/10 px-6 py-4 flex items-center justify-between"
+        style={{ background: 'rgba(15,23,42,0.8)', backdropFilter: 'blur(12px)' }}>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/bingo')} className="text-white/40 hover:text-white text-sm transition-colors">← Bingo</button>
+          <span className="text-white/20">|</span>
+          <h1 className="text-xl font-black">💰 คลังของรางวัล</h1>
         </div>
-        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
-          {totalPlayers} ผู้เล่นลงทะเบียน
-        </div>
+        <button onClick={() => setShowAdd(true)}
+          className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
+          style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+          ➕ เพิ่มของรางวัล
+        </button>
       </div>
 
-      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '20px 16px' }}>
-
-        {/* ── Ticket price setting ── */}
-        <div style={{ borderRadius: '16px', padding: '16px 20px', marginBottom: '16px',
-          border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <p style={{ margin: '0 0 2px', fontSize: '12px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              ราคาบัตรต่อใบ
-            </p>
-            {editTicket ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '18px', color: 'rgba(255,255,255,0.5)' }}>฿</span>
-                <input
-                  type="number" min="0" step="0.5" value={ticketDraft}
-                  onChange={e => setTicketDraft(e.target.value)}
-                  autoFocus
-                  style={{ width: '120px', padding: '6px 10px', borderRadius: '10px', fontSize: '20px', fontWeight: 700,
-                    background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)',
-                    color: '#fff', outline: 'none' }}
-                />
-              </div>
-            ) : (
-              <p style={{ margin: 0, fontSize: '28px', fontWeight: 900, color: '#34d399' }}>
-                {fmt(ticketPrice)}
-              </p>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {editTicket ? (
-              <>
-                <button onClick={saveTicketPrice} disabled={saving}
-                  style={{ padding: '8px 18px', borderRadius: '10px', fontWeight: 700, fontSize: '14px',
-                    background: 'linear-gradient(135deg,#10b981,#059669)', border: 'none', color: '#fff', cursor: 'pointer' }}>
-                  {saving ? 'บันทึก...' : 'บันทึก'}
-                </button>
-                <button onClick={() => { setEditTicket(false); setTicketDraft(String(ticketPrice)); }}
-                  style={{ padding: '8px 14px', borderRadius: '10px', fontSize: '14px',
-                    background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>
-                  ยกเลิก
-                </button>
-              </>
-            ) : (
-              <button onClick={() => setEditTicket(true)}
-                style={{ padding: '8px 18px', borderRadius: '10px', fontSize: '14px', fontWeight: 600,
-                  background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
-                ✏️ แก้ไขราคา
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ── Rounds table ── */}
-        <div style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)',
-          marginBottom: '20px', background: 'rgba(255,255,255,0.03)' }}>
-
-          {/* Table header row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
-            <p style={{ margin: 0, fontWeight: 700, fontSize: '14px' }}>รายละเอียดแต่ละรอบ</p>
-            {editPrize ? (
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={savePrizeValues} disabled={saving}
-                  style={{ padding: '5px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700,
-                    background: 'rgba(16,185,129,0.2)', border: '1px solid rgba(16,185,129,0.4)', color: '#34d399', cursor: 'pointer' }}>
-                  {saving ? '...' : 'บันทึก'}
-                </button>
-                <button onClick={() => setEditPrize(false)}
-                  style={{ padding: '5px 12px', borderRadius: '8px', fontSize: '12px',
-                    background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
-                  ยกเลิก
-                </button>
-              </div>
-            ) : (
-              <button onClick={() => setEditPrize(true)}
-                style={{ padding: '5px 14px', borderRadius: '8px', fontSize: '12px',
-                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>
-                ✏️ แก้ไขมูลค่ารางวัล
-              </button>
-            )}
-          </div>
-
-          {/* Column headers */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '50px 1fr 110px 90px 110px 90px 110px',
-            padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-            fontSize: '11px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.5px',
-          }}>
-            <div>รอบ</div>
-            <div>รางวัล / รูปแบบ</div>
-            <div style={{ textAlign: 'right' }}>มูลค่ารางวัล</div>
-            <div style={{ textAlign: 'center' }}>ผู้เล่น</div>
-            <div style={{ textAlign: 'right' }}>ยอดขายบัตร</div>
-            <div style={{ textAlign: 'center' }}>ผู้ชนะ</div>
-            <div style={{ textAlign: 'right' }}>จ่ายรางวัล</div>
-          </div>
-
-          {/* Rows */}
-          {roundData.map((rnd, i) => (
-            <div key={rnd.id} style={{
-              display: 'grid', gridTemplateColumns: '50px 1fr 110px 90px 110px 90px 110px',
-              padding: '12px 16px', alignItems: 'center',
-              borderBottom: i < roundData.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-              background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)',
-            }}>
-              {/* Round # */}
-              <div style={{ fontWeight: 800, fontSize: '16px', color: '#c4b5fd' }}>
-                {i + 1}{rnd.is_golden ? ' ⚡' : ''}
-              </div>
-
-              {/* Prize / pattern */}
-              <div>
-                <p style={{ margin: 0, fontWeight: 600, fontSize: '14px', color: rnd.prize ? '#fff' : 'rgba(255,255,255,0.25)',
-                  fontStyle: rnd.prize ? 'normal' : 'italic' }}>
-                  {rnd.prize || 'ยังไม่ตั้งรางวัล'}
-                </p>
-                <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
-                  {PATTERN_LABEL[rnd.pattern] || rnd.pattern}
-                </p>
-              </div>
-
-              {/* Prize value */}
-              <div style={{ textAlign: 'right' }}>
-                {editPrize ? (
-                  <input
-                    type="number" min="0" step="0.5"
-                    value={prizeDraft[i]?.prize_value || '0'}
-                    onChange={e => setPrizeDraft(prev => prev.map((p, j) =>
-                      j === i ? { ...p, prize_value: e.target.value } : p
-                    ))}
-                    style={{ width: '90px', padding: '4px 8px', borderRadius: '8px', textAlign: 'right',
-                      background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
-                      color: '#fff', fontSize: '14px', outline: 'none' }}
-                  />
-                ) : (
-                  <span style={{ fontWeight: 700, fontSize: '15px',
-                    color: rnd.prizeValue > 0 ? '#f87171' : 'rgba(255,255,255,0.2)' }}>
-                    {fmt(rnd.prizeValue)}
-                  </span>
-                )}
-              </div>
-
-              {/* Players */}
-              <div style={{ textAlign: 'center', fontWeight: 600, fontSize: '14px', color: 'rgba(255,255,255,0.7)' }}>
-                {totalPlayers} <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>คน</span>
-              </div>
-
-              {/* Revenue */}
-              <div style={{ textAlign: 'right', fontWeight: 700, fontSize: '15px',
-                color: rnd.revenue > 0 ? '#34d399' : 'rgba(255,255,255,0.2)' }}>
-                {fmt(rnd.revenue)}
-              </div>
-
-              {/* Winners */}
-              <div style={{ textAlign: 'center' }}>
-                {rnd.winnersCount > 0 ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px',
-                    padding: '2px 10px', borderRadius: '999px', fontSize: '13px', fontWeight: 700,
-                    background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24' }}>
-                    🏆 {rnd.winnersCount}
-                  </span>
-                ) : (
-                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>—</span>
-                )}
-              </div>
-
-              {/* Payout */}
-              <div style={{ textAlign: 'right', fontWeight: 700, fontSize: '15px',
-                color: rnd.payout > 0 ? '#fb923c' : 'rgba(255,255,255,0.2)' }}>
-                {fmt(rnd.payout)}
-              </div>
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: 'มูลค่ารวม', value: fmt(totalValue), color: '#10b981', icon: '💎' },
+            { label: 'จำนวนทั้งหมด', value: totalQty, color: '#60a5fa', icon: '📦' },
+            { label: 'คงเหลือ', value: totalRemaining, color: '#fbbf24', icon: '✅' },
+            { label: 'จ่ายไปแล้ว', value: totalUsed, color: '#f87171', icon: '🎁' },
+          ].map(({ label, value, color, icon }) => (
+            <div key={label} className="rounded-2xl p-4 border border-white/10 text-center"
+              style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <div className="text-2xl mb-1">{icon}</div>
+              <div className="text-2xl font-black" style={{ color }}>{value}</div>
+              <div className="text-xs text-white/40 mt-1">{label}</div>
             </div>
           ))}
         </div>
 
-        {/* ── Summary cards ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: '12px', marginBottom: '16px' }}>
-
-          {/* Total revenue */}
-          <div style={{ borderRadius: '16px', padding: '18px 20px', textAlign: 'center',
-            border: '1px solid rgba(52,211,153,0.3)', background: 'rgba(52,211,153,0.07)' }}>
-            <p style={{ margin: '0 0 4px', fontSize: '11px', color: 'rgba(52,211,153,0.6)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              💰 ยอดรายรับสะสม
-            </p>
-            <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
-              ({totalPlayers} คน × {fmt(ticketPrice)})
-            </p>
-            <p style={{ margin: 0, fontSize: '32px', fontWeight: 900, color: '#34d399' }}>
-              {fmt(totalRevenue)}
-            </p>
+        {/* Table */}
+        {loading ? (
+          <div className="text-center py-16 text-white/30 animate-pulse">⏳ กำลังโหลด...</div>
+        ) : prizes.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-6xl mb-4">🎁</div>
+            <p className="text-white/30 text-lg">ยังไม่มีรายการของรางวัล</p>
+            <p className="text-white/20 text-sm mt-2">กด "เพิ่มของรางวัล" เพื่อเริ่มต้น</p>
           </div>
-
-          {/* Total payout */}
-          <div style={{ borderRadius: '16px', padding: '18px 20px', textAlign: 'center',
-            border: '1px solid rgba(251,146,60,0.3)', background: 'rgba(251,146,60,0.07)' }}>
-            <p style={{ margin: '0 0 4px', fontSize: '11px', color: 'rgba(251,146,60,0.6)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              💸 ยอดรางจ่ายทั้งหมด
-            </p>
-            <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
-              ({roundData.filter(r => r.winnersCount > 0).length} รอบที่มีผู้ชนะ)
-            </p>
-            <p style={{ margin: 0, fontSize: '32px', fontWeight: 900, color: '#fb923c' }}>
-              {fmt(totalPayout)}
-            </p>
-          </div>
-
-          {/* Net profit */}
-          <div style={{
-            borderRadius: '16px', padding: '18px 20px', textAlign: 'center',
-            border: `1px solid ${netProfit >= 0 ? 'rgba(167,139,250,0.4)' : 'rgba(248,113,113,0.4)'}`,
-            background: netProfit >= 0 ? 'rgba(124,58,237,0.1)' : 'rgba(239,68,68,0.08)',
-          }}>
-            <p style={{ margin: '0 0 4px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px',
-              color: netProfit >= 0 ? 'rgba(167,139,250,0.7)' : 'rgba(248,113,113,0.7)' }}>
-              📊 กำไรสุทธิ
-            </p>
-            <p style={{ margin: '0 0 2px', fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
-              (รายรับ − รางจ่าย)
-            </p>
-            <p style={{ margin: 0, fontSize: '32px', fontWeight: 900,
-              color: netProfit >= 0 ? '#c4b5fd' : '#f87171' }}>
-              {netProfit >= 0 ? '' : '−'}{fmt(Math.abs(netProfit))}
-            </p>
-          </div>
-        </div>
-
-        {/* ── Winners detail ── */}
-        {rounds.some(r => r.winners?.length > 0) && (
-          <div style={{ borderRadius: '16px', padding: '16px 20px',
-            border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
-            <p style={{ margin: '0 0 12px', fontWeight: 700, fontSize: '14px' }}>🏆 รายชื่อผู้ชนะ</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {rounds.flatMap((rnd, ri) =>
-                (rnd.winners || []).map((w, wi) => (
-                  <div key={`${ri}-${wi}`} style={{ display: 'flex', alignItems: 'center', gap: '12px',
-                    padding: '6px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.05)', fontSize: '13px' }}>
-                    <span style={{ color: '#c4b5fd', fontWeight: 700, minWidth: '44px' }}>รอบ {ri + 1}</span>
-                    <span style={{ color: '#fbbf24', fontWeight: 700 }}>🏆</span>
-                    <span style={{ fontWeight: 600, flex: 1 }}>{w.alias}</span>
-                    {rnd.prize && <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>{rnd.prize}</span>}
-                  </div>
-                ))
-              )}
-            </div>
+        ) : (
+          <div className="rounded-2xl overflow-hidden border border-white/10" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10 text-white/40 text-xs uppercase tracking-wide">
+                  <th className="text-left px-5 py-3">ของรางวัล</th>
+                  <th className="text-right px-5 py-3">มูลค่า</th>
+                  <th className="text-right px-5 py-3">จำนวน</th>
+                  <th className="text-right px-5 py-3">คงเหลือ</th>
+                  <th className="text-right px-5 py-3">จ่ายไปแล้ว</th>
+                  <th className="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {prizes.map(p => (
+                  <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    {editId === p.id ? (
+                      <>
+                        <td className="px-5 py-3">
+                          <input value={editData.name ?? p.name}
+                            onChange={e => setEditData(d => ({ ...d, name: e.target.value }))}
+                            className="w-full bg-white/10 rounded-lg px-2 py-1 text-white focus:outline-none border border-white/20" />
+                        </td>
+                        <td className="px-5 py-3">
+                          <input type="number" min="0" step="0.01" value={editData.value ?? p.value}
+                            onChange={e => setEditData(d => ({ ...d, value: e.target.value }))}
+                            className="w-24 bg-white/10 rounded-lg px-2 py-1 text-white text-right focus:outline-none border border-white/20 ml-auto block" />
+                        </td>
+                        <td className="px-5 py-3">
+                          <input type="number" min="0" value={editData.quantity ?? p.quantity}
+                            onChange={e => setEditData(d => ({ ...d, quantity: e.target.value }))}
+                            className="w-20 bg-white/10 rounded-lg px-2 py-1 text-white text-right focus:outline-none border border-white/20 ml-auto block" />
+                        </td>
+                        <td className="px-5 py-3">
+                          <input type="number" min="0" value={editData.remaining ?? p.remaining}
+                            onChange={e => setEditData(d => ({ ...d, remaining: e.target.value }))}
+                            className="w-20 bg-white/10 rounded-lg px-2 py-1 text-white text-right focus:outline-none border border-white/20 ml-auto block" />
+                        </td>
+                        <td className="px-5 py-3 text-right text-white/40">
+                          {(editData.quantity ?? p.quantity) - (editData.remaining ?? p.remaining)}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex gap-2 justify-end">
+                            <button onClick={() => saveEdit(p.id)}
+                              className="text-xs px-3 py-1 rounded-lg font-bold"
+                              style={{ background: 'rgba(16,185,129,0.2)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)' }}>
+                              บันทึก
+                            </button>
+                            <button onClick={() => setEditId(null)}
+                              className="text-xs px-3 py-1 rounded-lg text-white/40 hover:text-white border border-white/10">
+                              ยกเลิก
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-5 py-3 font-medium">{p.name}</td>
+                        <td className="px-5 py-3 text-right text-emerald-400 font-bold">{fmt(p.value)}</td>
+                        <td className="px-5 py-3 text-right text-white/70">{p.quantity}</td>
+                        <td className="px-5 py-3 text-right">
+                          <span className={`font-bold ${p.remaining === 0 ? 'text-red-400' : p.remaining <= 3 ? 'text-yellow-400' : 'text-white'}`}>
+                            {p.remaining}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-right text-orange-400">{p.quantity - p.remaining}</td>
+                        <td className="px-5 py-3">
+                          <div className="flex gap-2 justify-end">
+                            <button onClick={() => { setEditId(p.id); setEditData({}); }}
+                              className="text-xs px-3 py-1 rounded-lg text-white/40 hover:text-white border border-white/10 transition-colors">
+                              ✏️ แก้ไข
+                            </button>
+                            <button onClick={() => deletePrize(p.id)}
+                              className="text-xs px-3 py-1 rounded-lg text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-colors">
+                              🗑️ ลบ
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-white/10 text-xs font-bold">
+                  <td className="px-5 py-3 text-white/60">รวมทั้งหมด</td>
+                  <td className="px-5 py-3 text-right text-emerald-400">{fmt(totalValue)}</td>
+                  <td className="px-5 py-3 text-right text-white/60">{totalQty}</td>
+                  <td className="px-5 py-3 text-right text-white">{totalRemaining}</td>
+                  <td className="px-5 py-3 text-right text-orange-400">{totalUsed}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         )}
       </div>
+
+      {/* Add Prize Modal */}
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)' }}
+          onClick={e => e.target === e.currentTarget && setShowAdd(false)}>
+          <div className="w-full max-w-sm rounded-2xl p-6 border border-white/10"
+            style={{ background: 'rgba(15,23,42,0.98)' }}>
+            <h3 className="font-bold text-lg mb-4">🎁 เพิ่มของรางวัล</h3>
+            <form onSubmit={addPrize} className="space-y-4">
+              <div>
+                <label className="text-xs text-white/50 block mb-1">ชื่อของรางวัล *</label>
+                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required
+                  placeholder="เช่น ดินสอสี 12 แท่ง"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-emerald-400 placeholder-white/20" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-white/50 block mb-1">มูลค่า (฿)</label>
+                  <input type="number" min="0" step="0.01" value={form.value}
+                    onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
+                    placeholder="0"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-emerald-400 placeholder-white/20" />
+                </div>
+                <div>
+                  <label className="text-xs text-white/50 block mb-1">จำนวน (ชิ้น)</label>
+                  <input type="number" min="0" value={form.quantity}
+                    onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
+                    placeholder="0"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-emerald-400 placeholder-white/20" />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowAdd(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-white/50 hover:text-white text-sm transition-colors">
+                  ยกเลิก
+                </button>
+                <button type="submit" disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm disabled:opacity-50 transition-all hover:scale-[1.02]"
+                  style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+                  {saving ? '⏳...' : '✅ เพิ่ม'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

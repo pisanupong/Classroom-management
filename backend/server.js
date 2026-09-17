@@ -1056,6 +1056,13 @@ io.on('connection', (socket) => {
       const winner = await prisma.bingoWinner.create({
         data: { round_id: roundId, card_id: cardId, alias },
       });
+      // Deduct prize inventory if linked
+      if (round.prize_inventory_id) {
+        prisma.bingoPrizeInventory.update({
+          where: { id: round.prize_inventory_id },
+          data: { remaining: { decrement: 1 } },
+        }).catch(() => {});
+      }
       io.to(`bingo:${roomId}`).emit('bingo:winner', {
         alias, roundId, cardId, pattern: round.pattern, prize: round.prize,
       });

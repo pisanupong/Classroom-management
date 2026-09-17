@@ -599,6 +599,7 @@ model BingoRoom {
 
   rounds        BingoRound[]
   cards         BingoCard[]
+  prize_inventory BingoPrizeInventory[] @relation("PrizeInventoryOwner")
 }
 
 model BingoRound {
@@ -614,6 +615,9 @@ model BingoRound {
   status        String    @default("pending") // pending | active | finished
   started_at    DateTime?
   ended_at      DateTime?
+
+  prize_inventory_id  Int?
+  prize_inventory     BingoPrizeInventory? @relation(fields: [prize_inventory_id], references: [id])
 
   room          BingoRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
   winners       BingoWinner[]
@@ -631,6 +635,19 @@ model BingoCard {
   room          BingoRoom  @relation(fields: [room_id], references: [id], onDelete: Cascade)
   round         BingoRound? @relation("RoundCards", fields: [round_id], references: [id])
   wins          BingoWinner[]
+}
+
+model BingoPrizeInventory {
+  id         Int          @id @default(autoincrement())
+  name       String
+  value      Float        @default(0)
+  quantity   Int          @default(0)
+  remaining  Int          @default(0)
+  owner_id   Int
+  owner      User         @relation("PrizeInventoryOwner", fields: [owner_id], references: [id])
+  rounds     BingoRound[]
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
 }
 
 model BingoWinner {

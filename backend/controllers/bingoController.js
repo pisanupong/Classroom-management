@@ -56,6 +56,7 @@ const createRoom = async (req, res) => {
               prize:     cfg.prize     || null,
               prize_value: parseFloat(cfg.prize_value) || 0,
               is_golden: cfg.is_golden || false,
+              prize_inventory_id: cfg.prize_inventory_id ? parseInt(cfg.prize_inventory_id) : null,
             };
           }),
         },
@@ -186,6 +187,7 @@ const updateRounds = async (req, res) => {
           prize_image: r.prize_image !== undefined ? (r.prize_image || null) : undefined,
           prize_value: r.prize_value !== undefined ? (parseFloat(r.prize_value) || 0) : undefined,
           is_golden:   r.is_golden   ?? false,
+          prize_inventory_id: r.prize_inventory_id !== undefined ? (r.prize_inventory_id ? parseInt(r.prize_inventory_id) : null) : undefined,
         },
       }))
     );
@@ -212,4 +214,52 @@ const deleteRoom = async (req, res) => {
   }
 };
 
-module.exports = { createRoom, getRooms, getRoom, joinRoom, updateRoom, updateRounds, deleteRoom };
+/* ── GET /api/bingo/prizes ── List teacher's prize inventory ─────────── */
+const getPrizes = async (req, res) => {
+  try {
+    const prizes = await prisma.bingoPrizeInventory.findMany({
+      where: { owner_id: req.user.id },
+      orderBy: { created_at: 'desc' },
+    });
+    res.json(prizes);
+  } catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+/* ── POST /api/bingo/prizes ── Create prize ──────────────────────────── */
+const createPrize = async (req, res) => {
+  try {
+    const { name, value, quantity } = req.body;
+    if (!name) return res.status(400).json({ message: 'กรุณาใส่ชื่อของรางวัล' });
+    const qty = parseInt(quantity) || 0;
+    const prize = await prisma.bingoPrizeInventory.create({
+      data: { name, value: parseFloat(value) || 0, quantity: qty, remaining: qty, owner_id: req.user.id },
+    });
+    res.status(201).json(prize);
+  } catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+/* ── PUT /api/bingo/prizes/:prizeId ── Update prize ─────────────────── */
+const updatePrize = async (req, res) => {
+  try {
+    const id = parseInt(req.params.prizeId);
+    const { name, value, quantity, remaining } = req.body;
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (value !== undefined) data.value = parseFloat(value) || 0;
+    if (quantity !== undefined) data.quantity = parseInt(quantity) || 0;
+    if (remaining !== undefined) data.remaining = parseInt(remaining) || 0;
+    const prize = await prisma.bingoPrizeInventory.update({ where: { id }, data });
+    res.json(prize);
+  } catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+/* ── DELETE /api/bingo/prizes/:prizeId ── Delete prize ──────────────── */
+const deletePrize = async (req, res) => {
+  try {
+    const id = parseInt(req.params.prizeId);
+    await prisma.bingoPrizeInventory.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+module.exports = { createRoom, getRooms, getRoom, joinRoom, updateRoom, updateRounds, deleteRoom, getPrizes, createPrize, updatePrize, deletePrize };
