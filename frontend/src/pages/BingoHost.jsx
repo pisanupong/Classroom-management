@@ -36,6 +36,7 @@ export default function BingoHost() {
   const [winners,       setWinners]       = useState([]);
   const [playerCount,   setPlayerCount]   = useState(0);
   const [registeredCount, setRegisteredCount] = useState(0);
+  const [players,       setPlayers]       = useState([]); // unique aliases
   const [activeRoundIdx, setActiveRoundIdx] = useState(0);
   const [roundStatus,   setRoundStatus]   = useState('pending');
   const [editPrizes,    setEditPrizes]    = useState(false);
@@ -58,7 +59,9 @@ export default function BingoHost() {
   useEffect(() => {
     api.get(`/bingo/rooms/${id}`).then(r => {
       setRoom(r.data);
-      setRegisteredCount(r.data._count?.cards || 0);
+      const uniquePlayers = [...new Set((r.data.cards || []).map(c => c.alias))].sort();
+      setPlayers(uniquePlayers);
+      setRegisteredCount(uniquePlayers.length);
       setRounds(r.data.rounds || []);
       setDrawn(r.data.drawn_numbers || []);
       setPrizeDraft((r.data.rounds || []).map(rnd => ({
@@ -83,7 +86,9 @@ export default function BingoHost() {
     const interval = setInterval(async () => {
       try {
         const r = await api.get(`/bingo/rooms/${id}`);
-        setRegisteredCount(r.data._count?.cards || 0);
+        const uniquePlayers = [...new Set((r.data.cards || []).map(c => c.alias))].sort();
+        setPlayers(uniquePlayers);
+        setRegisteredCount(uniquePlayers.length);
       } catch {}
     }, 10000);
     return () => clearInterval(interval);
@@ -370,7 +375,7 @@ export default function BingoHost() {
               color: '#818cf8', background: 'rgba(99,102,241,0.1)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
             📺 Display
           </button>
-          <button onClick={() => navigate(`/bingo/account/${id}`)}
+          <button onClick={() => navigate('/bingo/account')}
             style={{ padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(52,211,153,0.4)',
               color: '#34d399', background: 'rgba(52,211,153,0.08)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
             💰 บัญชี
@@ -389,13 +394,43 @@ export default function BingoHost() {
         {/* ── LEFT: Controls ── */}
         <div style={{ width: '240px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-          {/* QR Code */}
-          <div style={{ borderRadius: '16px', padding: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
-            <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', margin: '0 0 8px', letterSpacing: '1px', textTransform: 'uppercase' }}>สแกนเพื่อเล่น</p>
-            <div style={{ display: 'inline-block', padding: '10px', borderRadius: '12px', background: '#fff' }}>
-              <QRCodeSVG value={playerUrl} size={140} />
+          {/* QR Code — hidden when drawing numbers */}
+          {roundStatus !== 'active' && (
+            <div style={{ borderRadius: '16px', padding: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', margin: '0 0 8px', letterSpacing: '1px', textTransform: 'uppercase' }}>สแกนเพื่อเล่น</p>
+              <div style={{ display: 'inline-block', padding: '10px', borderRadius: '12px', background: '#fff' }}>
+                <QRCodeSVG value={playerUrl} size={140} />
+              </div>
+              <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', marginTop: '6px', wordBreak: 'break-all' }}>{playerUrl}</p>
             </div>
-            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px', marginTop: '6px', wordBreak: 'break-all' }}>{playerUrl}</p>
+          )}
+
+          {/* Player list */}
+          <div style={{ borderRadius: '16px', padding: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', flex: roundStatus === 'active' ? '1' : undefined }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                👥 ผู้เล่น
+              </p>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#34d399' }}>
+                {playerCount} / {registeredCount}
+              </span>
+            </div>
+            {players.length === 0 ? (
+              <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', textAlign: 'center', padding: '8px 0', margin: 0 }}>รอผู้เล่นเข้าร่วม...</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', maxHeight: roundStatus === 'active' ? '280px' : '140px', overflowY: 'auto' }}>
+                {players.map((alias, i) => (
+                  <div key={alias} style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '4px 6px', borderRadius: '8px', fontSize: '12px',
+                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+                  }}>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', minWidth: '16px' }}>{i + 1}</span>
+                    <span style={{ fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{alias}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Round controls */}

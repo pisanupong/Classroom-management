@@ -123,6 +123,7 @@ const getRoom = async (req, res) => {
           orderBy: { round_number: 'asc' },
           include: { winners: { orderBy: { won_at: 'asc' } } },
         },
+        cards: { select: { alias: true, round_id: true }, orderBy: { alias: 'asc' } },
         _count: { select: { cards: true } },
       },
     });

@@ -1003,8 +1003,16 @@ io.on('connection', (socket) => {
   // ── BINGO socket events ─────────────────────────────────────────────────
   socket.on('bingo:join_room', async ({ roomId, alias }) => {
     socket.join(`bingo:${roomId}`);
-    // Notify host
-    const count = io.sockets.adapter.rooms.get(`bingo:${roomId}`)?.size || 0;
+    socket.data.bingo_alias = alias; // store for counting
+    // Count only non-HOST sockets
+    const roomSockets = io.sockets.adapter.rooms.get(`bingo:${roomId}`);
+    let count = 0;
+    if (roomSockets) {
+      for (const sid of roomSockets) {
+        const s = io.sockets.sockets.get(sid);
+        if (s && !String(s.data.bingo_alias || '').startsWith('HOST:')) count++;
+      }
+    }
     io.to(`bingo:${roomId}`).emit('bingo:player_count', { count });
   });
 
