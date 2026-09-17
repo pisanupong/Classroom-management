@@ -25,7 +25,7 @@ jobs:
       - name: Install & build frontend
         run: |
           cd frontend
-          npm ci
+          npm install
           npm run build
 
       # ── Upload built dist to VPS ──────────────────────────────────
