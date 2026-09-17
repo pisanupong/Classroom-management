@@ -593,6 +593,7 @@ model BingoRoom {
   current_round Int       @default(0)
   total_rounds  Int       @default(3)
   drawn_numbers Int[]     @default([])
+  ticket_price  Float     @default(0)          // ราคาบัตรต่อใบ (บาท)
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
 
@@ -606,6 +607,8 @@ model BingoRound {
   round_number  Int
   pattern       String    @default("line")    // line | full | corners | T | L
   prize         String?
+  prize_image   String?                       // optional URL for prize image
+  prize_value   Float     @default(0)         // มูลค่าของรางวัล (บาท)
   is_golden     Boolean   @default(false)
   drawn_numbers Int[]     @default([])
   status        String    @default("pending") // pending | active | finished
@@ -614,6 +617,7 @@ model BingoRound {
 
   room          BingoRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
   winners       BingoWinner[]
+  cards         BingoCard[] @relation("RoundCards")
 }
 
 model BingoCard {
@@ -621,9 +625,11 @@ model BingoCard {
   room_id       String
   alias         String
   numbers       Int[]                         // 25 numbers for 5x5 grid
+  round_id      Int?                          // null = room-level (legacy); set = round-specific card
   created_at    DateTime  @default(now())
 
-  room          BingoRoom @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  room          BingoRoom  @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  round         BingoRound? @relation("RoundCards", fields: [round_id], references: [id])
   wins          BingoWinner[]
 }
 

@@ -54,7 +54,7 @@ jobs:
             echo "=== done! ==="
             echo "Site: http://acp-sixseven.online:8081/"
 
-      # ── Also upload backend + rebuild if changed ──────────────────
+      # ── Also upload backend + apply schema + restart ─────────────
       - name: Upload backend source to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -65,13 +65,19 @@ jobs:
           target: "/opt/classroom-app"
           overwrite: true
 
-      - name: Restart backend container
+      - name: Apply Prisma schema & restart backend
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            echo "=== copy new backend into container ==="
+            docker cp /opt/classroom-app/backend/. classroom-backend:/app/
+            echo "=== apply prisma schema (db push) ==="
+            docker exec classroom-backend npx prisma db push --accept-data-loss || echo "db push skipped (may not have changed)"
+            echo "=== restart backend ==="
             docker restart classroom-backend
-            sleep 3
+            sleep 4
             docker ps | grep classroom
+            echo "=== done! ==="

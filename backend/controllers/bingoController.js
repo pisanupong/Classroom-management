@@ -38,7 +38,7 @@ function generateCard() {
 /* ── POST /api/bingo/rooms ── Create room ─────────────────────────────── */
 const createRoom = async (req, res) => {
   try {
-    const { name, total_rounds = 3, rounds_config = [] } = req.body;
+    const { name, total_rounds = 3, rounds_config = [], ticket_price = 0 } = req.body;
     if (!name) return res.status(400).json({ message: 'กรุณาใส่ชื่อห้อง' });
 
     const room = await prisma.bingoRoom.create({
@@ -46,6 +46,7 @@ const createRoom = async (req, res) => {
         name,
         created_by: req.user.id,
         total_rounds: parseInt(total_rounds),
+        ticket_price: parseFloat(ticket_price) || 0,
         rounds: {
           create: Array.from({ length: parseInt(total_rounds) }, (_, i) => {
             const cfg = rounds_config[i] || {};
@@ -53,6 +54,7 @@ const createRoom = async (req, res) => {
               round_number: i + 1,
               pattern:   cfg.pattern   || 'line',
               prize:     cfg.prize     || null,
+              prize_value: parseFloat(cfg.prize_value) || 0,
               is_golden: cfg.is_golden || false,
             };
           }),
@@ -61,6 +63,32 @@ const createRoom = async (req, res) => {
       include: { rounds: { orderBy: { round_number: 'asc' } } },
     });
     res.status(201).json(room);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: e.message });
+  }
+};
+
+/* ── PATCH /api/bingo/rooms/:id ── Update room settings ──────────────── */
+const updateRoom = async (req, res) => {
+  try {
+    const { ticket_price, name } = req.body;
+    const data = {};
+    if (ticket_price !== undefined) data.ticket_price = parseFloat(ticket_price) || 0;
+    if (name !== undefined) data.name = name;
+
+    const room = await prisma.bingoRoom.update({
+      where: { id: req.params.id },
+      data,
+      include: {
+        rounds: {
+          orderBy: { round_number: 'asc' },
+          include: { winners: { orderBy: { won_at: 'asc' } } },
+        },
+        _count: { select: { cards: true } },
+      },
+    });
+    res.json(room);
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: e.message });
@@ -107,16 +135,17 @@ const getRoom = async (req, res) => {
 /* ── POST /api/bingo/rooms/:id/join ── Get / create card ─────────────── */
 const joinRoom = async (req, res) => {
   try {
-    const { alias } = req.body;
+    const { alias, roundId } = req.body;
     if (!alias) return res.status(400).json({ message: 'กรุณาใส่ชื่อ' });
 
     const room = await prisma.bingoRoom.findUnique({ where: { id: req.params.id } });
     if (!room) return res.status(404).json({ message: 'ไม่พบห้อง' });
     if (room.status === 'finished') return res.status(400).json({ message: 'เกมจบแล้ว' });
 
-    // Check existing card for this alias
+    // Scope card lookup: if roundId provided, find round-specific card; else find legacy room-level card
+    const roundIdNum = roundId ? parseInt(roundId) : null;
     let card = await prisma.bingoCard.findFirst({
-      where: { room_id: req.params.id, alias },
+      where: { room_id: req.params.id, alias, round_id: roundIdNum },
     });
     if (!card) {
       card = await prisma.bingoCard.create({
@@ -124,6 +153,7 @@ const joinRoom = async (req, res) => {
           room_id: req.params.id,
           alias,
           numbers: generateCard(),
+          round_id: roundIdNum,
         },
       });
     }
@@ -151,9 +181,11 @@ const updateRounds = async (req, res) => {
       rounds.map(r => prisma.bingoRound.update({
         where: { id: r.id },
         data: {
-          pattern:   r.pattern   ?? 'line',
-          prize:     r.prize     ?? null,
-          is_golden: r.is_golden ?? false,
+          pattern:     r.pattern     ?? 'line',
+          prize:       r.prize       ?? null,
+          prize_image: r.prize_image !== undefined ? (r.prize_image || null) : undefined,
+          prize_value: r.prize_value !== undefined ? (parseFloat(r.prize_value) || 0) : undefined,
+          is_golden:   r.is_golden   ?? false,
         },
       }))
     );
@@ -180,4 +212,4 @@ const deleteRoom = async (req, res) => {
   }
 };
 
-module.exports = { createRoom, getRooms, getRoom, joinRoom, updateRounds, deleteRoom };
+module.exports = { createRoom, getRooms, getRoom, joinRoom, updateRoom, updateRounds, deleteRoom };

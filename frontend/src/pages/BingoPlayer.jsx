@@ -46,6 +46,7 @@ export default function BingoPlayer() {
   const [roundMsg, setRoundMsg] = useState('');
   const [joinErr, setJoinErr] = useState('');
   const [joining, setJoining] = useState(false);
+  const activeRoundRef = useRef(null); // always points to latest activeRound (avoids stale closure)
 
   const applyRoomState = (roomData, roundsData) => {
     setRoom(roomData);
@@ -53,20 +54,34 @@ export default function BingoPlayer() {
     const drawnNow = active ? (active.drawn_numbers || []) : (roomData.drawn_numbers || []);
     setDrawn(drawnNow);
     if (drawnNow.length > 0) setLastDrawn(drawnNow[drawnNow.length - 1]);
-    if (active) setActiveRound(active);
+    if (active) {
+      setActiveRound(active);
+      activeRoundRef.current = active;
+    }
     if (roomData.status === 'ended') {
       localStorage.removeItem(STORAGE_KEY(id));
       setPhase('end');
     }
   };
 
-  // Auto-refresh every 5s
+  // Keep ref in sync whenever activeRound state changes
+  useEffect(() => { activeRoundRef.current = activeRound; }, [activeRound]);
+
+  // Auto-refresh every 5s — always uses the latest roundId via ref
   useEffect(() => {
     if (phase !== 'play' || !studentId) return;
     const refresh = async () => {
       try {
-        const r = await api.post(`/bingo/rooms/${id}/join`, { alias: studentId.trim() });
+        const currentRoundId = activeRoundRef.current?.id || null;
+        const r = await api.post(`/bingo/rooms/${id}/join`, {
+          alias: studentId.trim(),
+          roundId: currentRoundId,
+        });
         applyRoomState(r.data.room, r.data.rounds || []);
+        // Update card if it changed (e.g., new round card was created server-side)
+        if (r.data.card) {
+          setCard(prev => (!prev || r.data.card.id !== prev.id) ? r.data.card : prev);
+        }
       } catch {}
     };
     const timer = setInterval(refresh, 5000);
@@ -79,15 +94,27 @@ export default function BingoPlayer() {
     if (saved) { setStudentId(saved); doJoin(saved); }
   }, [id]);
 
-  const doJoin = useCallback(async (sid) => {
+  const doJoin = useCallback(async (sid, roundId = null) => {
     if (!sid?.trim()) return;
     setJoining(true); setJoinErr('');
     try {
-      const r = await api.post(`/bingo/rooms/${id}/join`, { alias: sid.trim() });
+      const r = await api.post(`/bingo/rooms/${id}/join`, { alias: sid.trim(), roundId });
       setCard(r.data.card);
       applyRoomState(r.data.room, r.data.rounds || []);
       localStorage.setItem(STORAGE_KEY(id), sid.trim());
       setPhase('play');
+
+      // If there's already an active round and we joined without a roundId, get the round-specific card
+      const activeFromData = r.data.rounds?.find(rnd => rnd.status === 'active');
+      if (activeFromData && !roundId) {
+        try {
+          const r2 = await api.post(`/bingo/rooms/${id}/join`, {
+            alias: sid.trim(),
+            roundId: activeFromData.id,
+          });
+          if (r2.data.card) setCard(r2.data.card);
+        } catch {}
+      }
 
       const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
         auth: {}, transports: ['websocket'],
@@ -95,13 +122,23 @@ export default function BingoPlayer() {
       socketRef.current = socket;
       socket.emit('bingo:join_room', { roomId: id, alias: sid.trim() });
       socket.on('bingo:number_drawn', ({ number, drawn: d }) => { setDrawn(d); setLastDrawn(number); });
-      socket.on('bingo:round_started', ({ round }) => {
-        setActiveRound(round); setDrawn([]); setLastDrawn(null);
+      socket.on('bingo:round_started', async ({ round }) => {
+        setActiveRound(round);
+        activeRoundRef.current = round;
+        setDrawn([]); setLastDrawn(null);
         setClaimed(false); setCanClaim(false); setWinners([]);
         setRoundMsg(`รอบ ${round.round_number} เริ่มแล้ว!`);
         setTimeout(() => setRoundMsg(''), 3000);
+        // Fetch a NEW card for this round (ensures each round has a unique card)
+        try {
+          const r2 = await api.post(`/bingo/rooms/${id}/join`, {
+            alias: sid.trim(),
+            roundId: round.id,
+          });
+          if (r2.data.card) setCard(r2.data.card);
+        } catch {}
       });
-      socket.on('bingo:round_ended', () => { setActiveRound(null); setCanClaim(false); setRoundMsg('รอบนี้จบแล้ว'); });
+      socket.on('bingo:round_ended', () => { setActiveRound(null); activeRoundRef.current = null; setCanClaim(false); setRoundMsg('รอบนี้จบแล้ว'); });
       socket.on('bingo:winner', (w) => setWinners(prev => [...prev, w]));
       socket.on('bingo:game_ended', () => { localStorage.removeItem(STORAGE_KEY(id)); setPhase('end'); });
     } catch (e) {
