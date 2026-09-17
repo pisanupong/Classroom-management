@@ -30,6 +30,7 @@ export default function BingoLobby() {
 
   const [form, setForm] = useState({
     name: '',
+    ticket_price: '',
     total_rounds: 3,
     rounds_config: [
       { pattern: 'line', prize: '', is_golden: false, prize_inventory_id: null },
@@ -66,6 +67,7 @@ export default function BingoLobby() {
     try {
       const r = await api.post('/bingo/rooms', {
         name: form.name,
+        ticket_price: parseFloat(form.ticket_price) || 0,
         total_rounds: form.total_rounds,
         rounds_config: form.rounds_config,
       });
@@ -99,6 +101,11 @@ export default function BingoLobby() {
               className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
               style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }}>
               💰 คลังรางวัล
+            </button>
+            <button onClick={() => navigate('/bingo/account?tab=accounting')}
+              className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
+              style={{ background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.4)', color: '#60a5fa' }}>
+              📊 บัญชี
             </button>
             <button onClick={openCreate}
               className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
@@ -198,11 +205,20 @@ export default function BingoLobby() {
                   placeholder="เช่น Bingo ป.5/1 เทอม 1"
                   className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-purple-400 placeholder-white/20" />
               </div>
-              <div>
-                <label className="text-xs text-white/50 block mb-1">จำนวนรอบ</label>
-                <input type="number" min={1} max={10} value={form.total_rounds}
-                  onChange={e => updateRoundsCount(e.target.value)}
-                  className="w-24 px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-purple-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-white/50 block mb-1">จำนวนรอบ</label>
+                  <input type="number" min={1} max={10} value={form.total_rounds}
+                    onChange={e => updateRoundsCount(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-purple-400" />
+                </div>
+                <div>
+                  <label className="text-xs text-white/50 block mb-1">ราคาบัตร (฿)</label>
+                  <input type="number" min={0} step={0.5} value={form.ticket_price}
+                    onChange={e => setForm(f => ({ ...f, ticket_price: e.target.value }))}
+                    placeholder="0 = ฟรี"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-purple-400 placeholder-white/20" />
+                </div>
               </div>
 
               {/* Per-round config */}

@@ -5,6 +5,7 @@ const {
   createRoom, getRooms, getRoom,
   joinRoom, updateRoom, updateRounds, deleteRoom,
   getPrizes, createPrize, updatePrize, deletePrize,
+  getAccountingSummary,
 } = require('../controllers/bingoController');
 
 // All routes require login except join (players may not have accounts)
@@ -15,6 +16,9 @@ router.patch('/rooms/:id',              protect, restrictTo('TEACHER', 'ADMIN', 
 router.post('/rooms/:id/join',          joinRoom);         // public
 router.put('/rooms/:id/rounds',         protect, restrictTo('TEACHER', 'ADMIN', 'SUPER_USER'), updateRounds);
 router.delete('/rooms/:id',             protect, restrictTo('TEACHER', 'ADMIN', 'SUPER_USER'), deleteRoom);
+
+// Accounting summary
+router.get('/accounting',               protect, restrictTo('TEACHER', 'ADMIN', 'SUPER_USER'), getAccountingSummary);
 
 // Prize inventory
 router.get('/prizes',                   protect, restrictTo('TEACHER', 'ADMIN', 'SUPER_USER'), getPrizes);

@@ -44,6 +44,7 @@ export default function BingoHost() {
   const [autoMode,      setAutoMode]      = useState(false);
   const [displayFormat, setDisplayFormat] = useState('grid'); // 'grid' | 'list' | 'columns'
   const [portraitWarn,  setPortraitWarn]  = useState(false);
+  const [gameEnded,     setGameEnded]     = useState(false);
 
   const playerUrl = `${window.location.origin}/bingo/play/${id}`;
 
@@ -110,7 +111,7 @@ export default function BingoHost() {
     });
     socket.on('bingo:round_ended', () => setRoundStatus('finished'));
     socket.on('bingo:winner',  (w)  => setWinners(prev => [...prev, w]));
-    socket.on('bingo:game_ended', () => navigate('/bingo'));
+    socket.on('bingo:game_ended', () => { stopAutoMode(); setGameEnded(true); });
 
     return () => {
       if (autoRef.current) clearInterval(autoRef.current);
@@ -330,6 +331,86 @@ export default function BingoHost() {
         </div>
       )}
 
+      {/* Game-ended summary overlay */}
+      {gameEnded && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 900,
+          background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(12px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '520px', borderRadius: '24px', padding: '32px',
+            border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(30,27,75,0.95)',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '64px', marginBottom: '12px' }}>🏆</div>
+            <h2 style={{ fontSize: '28px', fontWeight: 900, margin: '0 0 4px' }}>เกมจบแล้ว!</h2>
+            <p style={{ color: 'rgba(255,255,255,0.4)', margin: '0 0 24px', fontSize: '15px' }}>{room?.name}</p>
+
+            {/* Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px', marginBottom: '24px' }}>
+              {[
+                { label: 'ผู้เล่น', value: registeredCount, color: '#34d399', icon: '👥' },
+                { label: 'รายรับบัตร', value: `฿${((registeredCount) * (room?.ticket_price || 0)).toLocaleString('th-TH')}`, color: '#60a5fa', icon: '💵' },
+                { label: 'รางวัลจ่าย', value: `${winners.length} รางวัล`, color: '#fbbf24', icon: '🎁' },
+              ].map(({ label, value, color, icon }) => (
+                <div key={label} style={{ borderRadius: '16px', padding: '16px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ fontSize: '20px', marginBottom: '6px' }}>{icon}</div>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color }}>{value}</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '2px' }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Winners per round */}
+            {rounds.length > 0 && (
+              <div style={{ textAlign: 'left', marginBottom: '24px' }}>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                  ผู้ชนะแต่ละรอบ
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {rounds.map((rnd, i) => {
+                    const rndWinners = winners.filter(w => w.roundId === rnd.id);
+                    return (
+                      <div key={rnd.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span style={{ fontWeight: 700, fontSize: '13px', color: '#c4b5fd', minWidth: '48px' }}>รอบ {i + 1}</span>
+                        {rnd.prize && <span style={{ fontSize: '12px', color: '#fbbf24' }}>🎁 {rnd.prize}</span>}
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {rndWinners.length > 0
+                            ? rndWinners.map((w, j) => (
+                              <span key={j} style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }}>
+                                🏆 {w.alias}
+                              </span>
+                            ))
+                            : <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)' }}>ไม่มีผู้ชนะ</span>
+                          }
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => navigate('/bingo/account?tab=accounting')}
+                style={{ flex: 1, padding: '12px', borderRadius: '14px', fontWeight: 700, fontSize: '14px',
+                  border: '1px solid rgba(96,165,250,0.4)', background: 'rgba(96,165,250,0.12)',
+                  color: '#60a5fa', cursor: 'pointer' }}>
+                📊 ดูบัญชีเกม
+              </button>
+              <button onClick={() => navigate('/bingo')}
+                style={{ flex: 1, padding: '12px', borderRadius: '14px', fontWeight: 700, fontSize: '14px',
+                  border: 'none', background: 'linear-gradient(135deg,#7c3aed,#3b82f6)',
+                  color: '#fff', cursor: 'pointer' }}>
+                🏠 กลับหน้า Bingo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Header ── */}
       <div style={{
         borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '8px 16px',
@@ -374,11 +455,6 @@ export default function BingoHost() {
             style={{ padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(99,102,241,0.5)',
               color: '#818cf8', background: 'rgba(99,102,241,0.1)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
             📺 Display
-          </button>
-          <button onClick={() => navigate('/bingo/account')}
-            style={{ padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(52,211,153,0.4)',
-              color: '#34d399', background: 'rgba(52,211,153,0.08)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-            💰 บัญชี
           </button>
           <button onClick={() => { if (window.confirm('จบเกมเลยไหม?')) socketRef.current?.emit('bingo:end_game', { roomId: id }); }}
             style={{ padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.4)',

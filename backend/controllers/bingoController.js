@@ -264,4 +264,26 @@ const deletePrize = async (req, res) => {
   } catch (e) { res.status(500).json({ message: e.message }); }
 };
 
-module.exports = { createRoom, getRooms, getRoom, joinRoom, updateRoom, updateRounds, deleteRoom, getPrizes, createPrize, updatePrize, deletePrize };
+/* ── GET /api/bingo/accounting ── Per-room sales summary (teacher) ─────── */
+const getAccountingSummary = async (req, res) => {
+  try {
+    const rooms = await prisma.bingoRoom.findMany({
+      where: { created_by: req.user.id },
+      include: {
+        rounds: {
+          orderBy: { round_number: 'asc' },
+          include: {
+            winners: { orderBy: { won_at: 'asc' } },
+            prize_inventory: { select: { id: true, name: true, value: true } },
+          },
+        },
+        cards: { select: { alias: true, round_id: true }, orderBy: { alias: 'asc' } },
+        _count: { select: { cards: true } },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+    res.json(rooms);
+  } catch (e) { res.status(500).json({ message: e.message }); }
+};
+
+module.exports = { createRoom, getRooms, getRoom, joinRoom, updateRoom, updateRounds, deleteRoom, getPrizes, createPrize, updatePrize, deletePrize, getAccountingSummary };
