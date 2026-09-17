@@ -107,6 +107,11 @@ export default function BingoLobby() {
               style={{ background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.4)', color: '#60a5fa' }}>
               📊 บัญชี
             </button>
+            <button onClick={() => navigate('/bingo/sell')}
+              className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
+              style={{ background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', color: '#f59e0b' }}>
+              🎫 ขายบัตร
+            </button>
             <button onClick={openCreate}
               className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
               style={{ background: 'linear-gradient(135deg,#7c3aed,#db2777)' }}>
