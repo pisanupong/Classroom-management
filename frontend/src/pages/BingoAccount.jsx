@@ -12,7 +12,7 @@ export default function BingoAccount() {
   const [prizes, setPrizes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: '', value: '', quantity: '' });
+  const [form, setForm] = useState({ name: '', image: '', value: '', quantity: '' });
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editData, setEditData] = useState({});
@@ -31,7 +31,7 @@ export default function BingoAccount() {
     setSaving(true);
     try {
       await api.post('/bingo/prizes', form);
-      setForm({ name: '', value: '', quantity: '' });
+      setForm({ name: '', image: '', value: '', quantity: '' });
       setShowAdd(false);
       load();
     } catch (err) {
@@ -109,6 +109,7 @@ export default function BingoAccount() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/10 text-white/40 text-xs uppercase tracking-wide">
+                  <th className="px-5 py-3 w-12"></th>
                   <th className="text-left px-5 py-3">ของรางวัล</th>
                   <th className="text-right px-5 py-3">มูลค่า</th>
                   <th className="text-right px-5 py-3">จำนวน</th>
@@ -122,10 +123,18 @@ export default function BingoAccount() {
                   <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     {editId === p.id ? (
                       <>
+                        <td className="px-5 py-3 w-12">
+                          {(editData.image ?? p.image)
+                            ? <img src={editData.image ?? p.image} alt="" className="w-10 h-10 object-cover rounded-lg" onError={e => e.target.style.display='none'} />
+                            : <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-white/20 text-xs">🎁</div>}
+                        </td>
                         <td className="px-5 py-3">
                           <input value={editData.name ?? p.name}
                             onChange={e => setEditData(d => ({ ...d, name: e.target.value }))}
-                            className="w-full bg-white/10 rounded-lg px-2 py-1 text-white focus:outline-none border border-white/20" />
+                            className="w-full bg-white/10 rounded-lg px-2 py-1 text-white focus:outline-none border border-white/20 mb-1" placeholder="ชื่อ" />
+                          <input value={editData.image ?? p.image ?? ''}
+                            onChange={e => setEditData(d => ({ ...d, image: e.target.value }))}
+                            className="w-full bg-white/10 rounded-lg px-2 py-1 text-white focus:outline-none border border-white/20 text-xs" placeholder="URL รูปภาพ (ถ้ามี)" />
                         </td>
                         <td className="px-5 py-3">
                           <input type="number" min="0" step="0.01" value={editData.value ?? p.value}
@@ -161,6 +170,11 @@ export default function BingoAccount() {
                       </>
                     ) : (
                       <>
+                        <td className="px-5 py-3 w-12">
+                          {p.image
+                            ? <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg" onError={e => e.target.style.display='none'} />
+                            : <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-white/20">🎁</div>}
+                        </td>
                         <td className="px-5 py-3 font-medium">{p.name}</td>
                         <td className="px-5 py-3 text-right text-emerald-400 font-bold">{fmt(p.value)}</td>
                         <td className="px-5 py-3 text-right text-white/70">{p.quantity}</td>
@@ -216,6 +230,16 @@ export default function BingoAccount() {
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required
                   placeholder="เช่น ดินสอสี 12 แท่ง"
                   className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-emerald-400 placeholder-white/20" />
+              </div>
+              <div>
+                <label className="text-xs text-white/50 block mb-1">รูปภาพ (URL)</label>
+                <input value={form.image} onChange={e => setForm(f => ({ ...f, image: e.target.value }))}
+                  placeholder="https://... (ถ้ามี)"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-emerald-400 placeholder-white/20" />
+                {form.image && (
+                  <img src={form.image} alt="" className="mt-2 h-20 rounded-xl object-cover w-full"
+                    onError={e => e.target.style.display='none'} />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

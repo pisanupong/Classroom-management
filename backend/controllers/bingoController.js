@@ -228,11 +228,11 @@ const getPrizes = async (req, res) => {
 /* ── POST /api/bingo/prizes ── Create prize ──────────────────────────── */
 const createPrize = async (req, res) => {
   try {
-    const { name, value, quantity } = req.body;
+    const { name, image, value, quantity } = req.body;
     if (!name) return res.status(400).json({ message: 'กรุณาใส่ชื่อของรางวัล' });
     const qty = parseInt(quantity) || 0;
     const prize = await prisma.bingoPrizeInventory.create({
-      data: { name, value: parseFloat(value) || 0, quantity: qty, remaining: qty, owner_id: req.user.id },
+      data: { name, image: image || null, value: parseFloat(value) || 0, quantity: qty, remaining: qty, owner_id: req.user.id },
     });
     res.status(201).json(prize);
   } catch (e) { res.status(500).json({ message: e.message }); }
@@ -242,9 +242,10 @@ const createPrize = async (req, res) => {
 const updatePrize = async (req, res) => {
   try {
     const id = parseInt(req.params.prizeId);
-    const { name, value, quantity, remaining } = req.body;
+    const { name, image, value, quantity, remaining } = req.body;
     const data = {};
     if (name !== undefined) data.name = name;
+    if (image !== undefined) data.image = image || null;
     if (value !== undefined) data.value = parseFloat(value) || 0;
     if (quantity !== undefined) data.quantity = parseInt(quantity) || 0;
     if (remaining !== undefined) data.remaining = parseInt(remaining) || 0;

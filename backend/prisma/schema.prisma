@@ -640,6 +640,7 @@ model BingoCard {
 model BingoPrizeInventory {
   id         Int          @id @default(autoincrement())
   name       String
+  image      String?
   value      Float        @default(0)
   quantity   Int          @default(0)
   remaining  Int          @default(0)
