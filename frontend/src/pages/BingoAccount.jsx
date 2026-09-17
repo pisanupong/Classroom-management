@@ -211,10 +211,10 @@ export default function BingoAccount() {
                     <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                       {editId === p.id ? (
                         <>
-                          <td className="px-5 py-3 w-12">
+                          <td className="px-5 py-3 w-24">
                             {(editData.image ?? p.image)
-                              ? <img src={editData.image ?? p.image} alt="" className="w-10 h-10 object-cover rounded-lg" onError={e => e.target.style.display='none'} />
-                              : <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-white/20 text-xs">🎁</div>}
+                              ? <img src={editData.image ?? p.image} alt="" className="w-20 h-20 object-cover rounded-xl" onError={e => e.target.style.display='none'} />
+                              : <div className="w-20 h-20 rounded-xl bg-white/10 flex items-center justify-center text-2xl">🎁</div>}
                           </td>
                           <td className="px-5 py-3">
                             <input value={editData.name ?? p.name}
@@ -258,10 +258,10 @@ export default function BingoAccount() {
                         </>
                       ) : (
                         <>
-                          <td className="px-5 py-3 w-12">
+                          <td className="px-5 py-3 w-24">
                             {p.image
-                              ? <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg" onError={e => e.target.style.display='none'} />
-                              : <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-white/20">🎁</div>}
+                              ? <img src={p.image} alt={p.name} className="w-20 h-20 object-cover rounded-xl" onError={e => e.target.style.display='none'} />
+                              : <div className="w-20 h-20 rounded-xl bg-white/10 flex items-center justify-center text-2xl">🎁</div>}
                           </td>
                           <td className="px-5 py-3 font-medium">{p.name}</td>
                           <td className="px-5 py-3 text-right text-emerald-400 font-bold">{fmt(p.value)}</td>

@@ -121,7 +121,10 @@ const getRoom = async (req, res) => {
       include: {
         rounds: {
           orderBy: { round_number: 'asc' },
-          include: { winners: { orderBy: { won_at: 'asc' } } },
+          include: {
+            winners: { orderBy: { won_at: 'asc' } },
+            prize_inventory: { select: { id: true, name: true, value: true, image: true } },
+          },
         },
         cards: { select: { alias: true, round_id: true }, orderBy: { alias: 'asc' } },
         _count: { select: { cards: true } },

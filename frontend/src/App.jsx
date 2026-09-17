@@ -80,6 +80,7 @@ function App() {
             <Route path="/bingo/display/:id" element={<BingoDisplay />} />
             <Route path="/bingo/account" element={<ProtectedRoute><BingoAccount /></ProtectedRoute>} />
             <Route path="/bingo/sell" element={<ProtectedRoute><BingoSell /></ProtectedRoute>} />
+            <Route path="/bingo/pr" element={<BingoPR />} />
             <Route path="/bingo/pr/:id" element={<BingoPR />} />
           </Routes>
         </Router>

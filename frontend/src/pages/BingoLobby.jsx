@@ -102,6 +102,11 @@ export default function BingoLobby() {
               style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }}>
               💰 คลังรางวัล
             </button>
+            <button onClick={() => window.open('/bingo/pr', '_blank')}
+              className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
+              style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.4)', color: '#d4af37' }}>
+              📢 ประชาสัมพันธ์
+            </button>
             <button onClick={() => navigate('/bingo/account?tab=accounting')}
               className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
               style={{ background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.4)', color: '#60a5fa' }}>
@@ -178,11 +183,6 @@ export default function BingoLobby() {
                         className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]"
                         style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}>
                         🎲 เล่น
-                      </button>
-                      <button onClick={() => window.open(`/bingo/pr/${room.id}`, '_blank')}
-                        className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:scale-[1.02]"
-                        style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.35)', color: '#d4af37' }}>
-                        📢 ประชาสัมพันธ์
                       </button>
                       {isTeacher && (
                         <button onClick={() => deleteRoom(room.id)}
