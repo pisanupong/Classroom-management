@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 
 const BINGO_COL = ['B', 'I', 'N', 'G', 'O'];
-const COL_COLOR = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const COL_COLOR = ['#1d4ed8', '#047857', '#b45309', '#b91c1c', '#6d28d9'];
 const PATTERN_LABEL = {
   line: '📏 เส้นตรง', full: '🟩 เต็มบอร์ด',
   corners: '🔲 4 มุม', T: '🔠 ตัว T', L: '🔡 ตัว L',
@@ -240,7 +240,7 @@ ${priceHtml}
   th,td { border:1.5pt solid #333; text-align:center; padding:0; }
   th { padding:2mm 0; font-size:12pt; font-weight:900; color:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   td { height:15mm; font-size:16pt; font-weight:800; color:#1e1b4b; }
-  .free { background:#fef3c7; color:#d97706; font-size:8pt; font-weight:900; }
+  .free { background:#1f2937; color:#fff; font-size:7pt; font-weight:900; letter-spacing:1px; }
   .footer { display:flex; justify-content:space-between; align-items:center;
     margin-top:2mm; border-top:1px solid #e2e8f0; padding-top:1mm; }
   .footer-url { font-size:4.5pt; color:#94a3b8; word-break:break-all; flex:1; margin-right:2mm; }

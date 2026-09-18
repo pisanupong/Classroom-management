@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 
 const QRCODE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
 const BINGO_COL = ['B', 'I', 'N', 'G', 'O'];
-const COL_COLOR = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+// สีที่เข้มพอสำหรับพิมพ์ขาว-ดำ (B=blue-700, I=emerald-700, N=amber-700, G=red-700, O=violet-700)
+const COL_COLOR = ['#1d4ed8', '#047857', '#b45309', '#b91c1c', '#6d28d9'];
 const PATTERN_OPTS = [
   { value: 'line', label: '📏 เส้นตรง' },
   { value: 'full', label: '🟩 เต็มบอร์ด' },
@@ -90,6 +91,7 @@ export default function BingoTemplate() {
   const [isGolden,    setIsGolden]    = useState(false);
 
   /* ── Layout (paper) ── */
+  const [pageMargin,    setPageMargin]    = useState(4);  // mm
   const [tdHeight,      setTdHeight]      = useState(15); // mm
   const [numFontSize,   setNumFontSize]   = useState(16); // pt
   const [aliasFontSize, setAliasFontSize] = useState(13); // pt
@@ -150,18 +152,19 @@ export default function BingoTemplate() {
     const seqVal = parseInt(seq,10) || 999;
     const qrPx = Math.round(qrSizeMm * 3.78);
 
+    const cardW = (90 - pageMargin * 2).toFixed(1);
     const win = window.open('','_blank','width=360,height=660');
     win.document.write(`<!DOCTYPE html><html><head>
 <meta charset="utf-8">
 <title>Bingo Card #${seqVal} — ${alias}</title>
 <script src="${QRCODE_CDN}"><\/script>
 <style>
-  @page { size: 90mm 150mm; margin: 6mm; }
+  @page { size: 90mm 150mm; margin: ${pageMargin}mm; }
   @media print { .no-print{display:none!important;} html,body{width:100%;margin:0;padding:0;background:#fff;} .card{width:100%;box-shadow:none;} }
   @media screen { html{background:#94a3b8;padding:8px;} .card{box-shadow:0 4px 24px rgba(0,0,0,0.35);} .btn-wrap{padding:6px 0 2px;text-align:center;} }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   body{font-family:'Segoe UI',Tahoma,sans-serif;color:#1e293b;background:#fff;}
-  .card{width:78mm;background:#fff;}
+  .card{width:${cardW}mm;background:#fff;}
   .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2pt solid #7c3aed;padding-bottom:2mm;margin-bottom:2mm;}
   .top-left{flex:1;min-width:0;overflow:hidden;}
   .brand{font-size:10pt;font-weight:900;color:#7c3aed;letter-spacing:1px;}
@@ -180,7 +183,7 @@ export default function BingoTemplate() {
   th,td{border:1.5pt solid #333;text-align:center;padding:0;}
   th{padding:2mm 0;font-size:${thFontSize}pt;font-weight:900;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   td{height:${tdHeight}mm;font-size:${numFontSize}pt;font-weight:800;color:#1e1b4b;}
-  .free{background:#fef3c7;color:#d97706;font-size:8pt;font-weight:900;}
+  .free{background:#1f2937;color:#fff;font-size:7pt;font-weight:900;letter-spacing:1px;}
   .footer{display:flex;justify-content:space-between;align-items:center;margin-top:2mm;border-top:1px solid #e2e8f0;padding-top:1mm;}
   .footer-url{font-size:4.5pt;color:#94a3b8;word-break:break-all;flex:1;margin-right:2mm;}
   .footer-note{font-size:5pt;color:#475569;text-align:right;flex-shrink:0;}
@@ -411,6 +414,10 @@ ${prizeHtml}${priceHtml}
 
               {tab === 'paper' ? (
                 <>
+                  <F label={`ขอบกระดาษ (margin): ${pageMargin} mm`}>
+                    <input type="range" min="2" max="10" step="0.5" value={pageMargin} onChange={e=>setPageMargin(Number(e.target.value))}
+                      style={{ width:'100%', accentColor:'#7c3aed' }} />
+                  </F>
                   <F label={`ความสูงช่องตัวเลข: ${tdHeight} mm`}>
                     <input type="range" min="10" max="20" step="0.5" value={tdHeight} onChange={e=>setTdHeight(e.target.value)}
                       style={{ width:'100%', accentColor:'#7c3aed' }} />
