@@ -12,6 +12,9 @@ const PATTERN_LABEL = {
 const ROLE_LEVEL = { STUDENT: 0, TEACHER: 1, ADMIN: 2, SUPER_USER: 3 };
 const fmt = (n) => `฿${Number(n || 0).toLocaleString('th-TH')}`;
 
+/* ── QR Code library URL ──────────────────────────────────────────── */
+const QRCODE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+
 export default function BingoSell() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -20,16 +23,16 @@ export default function BingoSell() {
   const [rooms,         setRooms]         = useState([]);
   const [selectedRoom,  setSelectedRoom]  = useState(null);
   const [selectedRound, setSelectedRound] = useState(null);
-  const [roomDetail,    setRoomDetail]    = useState(null);  // full room with cards
+  const [roomDetail,    setRoomDetail]    = useState(null);
   const [loadingRooms,  setLoadingRooms]  = useState(true);
   const [loadingRoom,   setLoadingRoom]   = useState(false);
   const [studentId,     setStudentId]     = useState('');
-  const [preview,       setPreview]       = useState(null);  // card preview
+  const [preview,       setPreview]       = useState(null);
   const [selling,       setSelling]       = useState(false);
-  const [lastSold,      setLastSold]      = useState(null);  // last card sold
+  const [lastSold,      setLastSold]      = useState(null);
+  const [printType,     setPrintType]     = useState('paper'); // 'mobile' | 'paper'
   const inputRef = useRef(null);
 
-  // Load all non-finished rooms
   useEffect(() => {
     setLoadingRooms(true);
     api.get('/bingo/rooms')
@@ -50,7 +53,6 @@ export default function BingoSell() {
     try {
       const r = await api.get(`/bingo/rooms/${room.id}`);
       setRoomDetail(r.data);
-      // default to first round
       if (r.data.rounds?.length > 0) setSelectedRound(r.data.rounds[0]);
     } catch {}
     finally { setLoadingRoom(false); }
@@ -64,13 +66,12 @@ export default function BingoSell() {
     } catch {}
   };
 
-  // Count unique aliases for selected round
   const roundCards = (roomDetail?.cards || []).filter(c =>
     selectedRound ? c.round_id === selectedRound.id : c.round_id === null
   );
   const uniqueAliases = [...new Set(roundCards.map(c => c.alias))].sort();
   const soldCount = uniqueAliases.length;
-  const seqNum = soldCount + 1;  // next card sequence number
+  const seqNum = soldCount + 1;
 
   const generatePreview = async () => {
     if (!studentId.trim() || !selectedRoom || !selectedRound) return;
@@ -87,65 +88,200 @@ export default function BingoSell() {
     } finally { setSelling(false); }
   };
 
-  // Check if this alias already has a card for this round
   const alreadySold = selectedRound
     ? uniqueAliases.includes(studentId.trim())
     : false;
 
-  // Which sequence number does this alias hold?
   const existingSeq = selectedRound
     ? uniqueAliases.indexOf(studentId.trim()) + 1
     : 0;
 
-  const doPrint = (cardData, alias) => {
-    if (!cardData) return;
+  /* ── Build QR URL pointing to player join page ───────────────────── */
+  const buildQrUrl = (roomId, roundId, alias) => {
+    const base = window.location.origin;
+    return `${base}/bingo/play/${roomId}?round=${roundId}&alias=${encodeURIComponent(alias)}`;
+  };
+
+  /* ── Print: Type 1 — 80mm mobile receipt (no grid) ──────────────── */
+  const doPrintMobile = ({ rows, seq, room, round, alias, qrUrl }) => {
+    const patternLabel = PATTERN_LABEL[round.pattern] || round.pattern;
+    const priceHtml = room.ticket_price > 0
+      ? `<div class="price">${fmt(room.ticket_price)}</div>` : '';
+    const prizeHtml = round.prize
+      ? `<div class="prize-badge">🎁 ${round.prize}</div>` : '';
+    const goldenHtml = round.is_golden
+      ? `<div class="row"><span class="row-key">⚡ โกลเด้น รอบ</span><span class="row-val">✓</span></div>` : '';
+    const safeUrl = qrUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+    const win = window.open('', '_blank', 'width=360,height=700');
+    win.document.write(`<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>ตั๋ว Bingo #${seq} — ${alias}</title>
+<script src="${QRCODE_CDN}"><\/script>
+<style>
+  @page { size: 80mm auto; margin: 3mm; }
+  @media print { .no-print { display:none!important; } }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Courier New',monospace; width:74mm; background:#fff; color:#1e293b; }
+  .brand { text-align:center; padding:4mm 0 3mm; border-bottom:2px solid #1e293b; }
+  .brand-name { font-size:20pt; font-weight:900; letter-spacing:3px; color:#7c3aed; }
+  .room-name { font-size:8pt; color:#475569; margin-top:1mm; }
+  .info { padding:3mm 0; border-bottom:1px dashed #94a3b8; }
+  .row { display:flex; justify-content:space-between; font-size:8pt; padding:0.8mm 0; }
+  .row-key { color:#64748b; }
+  .row-val { font-weight:700; }
+  .prize-badge { background:#fef3c7; color:#d97706; font-size:8pt; font-weight:700; text-align:center; padding:1.5mm 3mm; border-radius:2mm; margin:2mm 0; }
+  .price { font-size:16pt; font-weight:900; color:#7c3aed; text-align:center; margin:2mm 0; }
+  .seq { text-align:center; font-size:38pt; font-weight:900; color:#1e1b4b; line-height:1; padding:3mm 0 1mm; }
+  .seq-label { font-size:8pt; color:#94a3b8; text-align:center; margin-bottom:3mm; }
+  .alias { font-size:18pt; font-weight:900; color:#1e1b4b; text-align:center; margin:2mm 0 3mm; letter-spacing:2px; border-top:1px dashed #e2e8f0; padding-top:3mm; }
+  .qr-wrap { display:flex; justify-content:center; padding:3mm 0 2mm; }
+  #qr img, #qr canvas { width:58mm!important; height:58mm!important; display:block; }
+  .url { font-size:5.5pt; color:#94a3b8; text-align:center; word-break:break-all; padding:1mm 2mm 2mm; }
+  .scan { background:#f0fdf4; border:1px solid #86efac; color:#166534; font-size:8pt; font-weight:700; text-align:center; padding:2mm; margin:2mm 0; border-radius:2mm; }
+  .btn { display:block; width:100%; margin:3mm 0 0; padding:3mm; background:#7c3aed; color:#fff; border:none; border-radius:3mm; font-size:10pt; font-weight:700; cursor:pointer; }
+</style></head><body>
+<div class="brand">
+  <div class="brand-name">🎱 BINGO</div>
+  <div class="room-name">${room.name}</div>
+</div>
+<div class="info">
+  <div class="row"><span class="row-key">รอบที่:</span><span class="row-val">${round.round_number} / ${room.total_rounds}</span></div>
+  <div class="row"><span class="row-key">รูปแบบ:</span><span class="row-val">${patternLabel}</span></div>
+  ${goldenHtml}
+</div>
+${prizeHtml}
+${priceHtml}
+<div class="seq">#${String(seq).padStart(3, '0')}</div>
+<div class="seq-label">ลำดับใบ</div>
+<div class="alias">${alias}</div>
+<div class="qr-wrap"><div id="qr"></div></div>
+<div class="url">${qrUrl}</div>
+<div class="scan">📱 สแกน QR เพื่อดูไพ่ Bingo บนมือถือ</div>
+<button class="btn no-print" onclick="window.print()">🖨️ พิมพ์ตั๋ว (80mm)</button>
+<script>
+(function() {
+  try {
+    new QRCode(document.getElementById('qr'), {
+      text: '${safeUrl}',
+      width: 220, height: 220,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } catch(e) {
+    document.getElementById('qr').innerHTML = '<div style="border:2px dashed #ccc;padding:10mm;text-align:center;font-size:7pt;color:#999">QR ไม่พร้อมใช้งาน<br><small>' + e.message + '</small></div>';
+  }
+})();
+<\/script>
+</body></html>`);
+    win.document.close();
+  };
+
+  /* ── Print: Type 2 — 100×150mm paper Bingo card (with grid) ─────── */
+  const doPrintPaper = ({ rows, seq, room, round, alias, qrUrl }) => {
+    const patternLabel = PATTERN_LABEL[round.pattern] || round.pattern;
+    const prizeHtml = round.prize ? `<span class="badge prize">🎁 ${round.prize}</span>` : '';
+    const priceHtml = room.ticket_price > 0 ? `<span class="badge price">${fmt(room.ticket_price)}</span>` : '';
+    const safeUrl = qrUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const gridRows = rows.map(row =>
+      `<tr>${row.map(n => n === 0
+        ? '<td class="free">FREE</td>'
+        : `<td>${n}</td>`
+      ).join('')}</tr>`
+    ).join('');
+    const colHeaders = BINGO_COL.map((c, i) =>
+      `<th style="background:${COL_COLOR[i]}">${c}</th>`
+    ).join('');
+
+    const win = window.open('', '_blank', 'width=420,height=620');
+    win.document.write(`<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>Bingo Card #${seq} — ${alias}</title>
+<script src="${QRCODE_CDN}"><\/script>
+<style>
+  @page { size: 100mm 150mm; margin: 4mm; }
+  @media print { .no-print { display:none!important; } html,body { width:100mm; height:150mm; overflow:hidden; } }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',Tahoma,sans-serif; background:#fff; width:92mm; color:#1e293b; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2pt solid #7c3aed; padding-bottom:2mm; margin-bottom:2mm; }
+  .top-left { flex:1; min-width:0; }
+  .brand { font-size:11pt; font-weight:900; color:#7c3aed; letter-spacing:1px; }
+  .room-name { font-size:6.5pt; color:#475569; margin-top:0.5mm; }
+  .badges { display:flex; flex-wrap:wrap; gap:1mm; margin-top:1.5mm; }
+  .badge { font-size:6.5pt; font-weight:700; padding:0.5mm 2mm; border-radius:1.5mm; white-space:nowrap; }
+  .badge.round { background:#ede9fe; color:#7c3aed; }
+  .badge.prize { background:#fef3c7; color:#d97706; }
+  .badge.price { background:#ecfdf5; color:#059669; }
+  .top-right { display:flex; flex-direction:column; align-items:flex-end; gap:1mm; flex-shrink:0; margin-left:2mm; }
+  .seq { font-size:28pt; font-weight:900; color:#1e1b4b; line-height:1; }
+  .seq-label { font-size:6pt; color:#94a3b8; text-align:right; }
+  #qr img, #qr canvas { width:22mm!important; height:22mm!important; display:block; }
+  .alias { font-size:14pt; font-weight:900; color:#1e1b4b; text-align:center; margin:1.5mm 0; letter-spacing:1px; }
+  table { border-collapse:collapse; width:100%; }
+  th,td { border:1.5pt solid #222; text-align:center; padding:0; }
+  th { padding:2mm 1mm; font-size:13pt; font-weight:900; color:#fff; }
+  td { height:16mm; font-size:17pt; font-weight:800; color:#1e1b4b; }
+  .free { background:#fef3c7; color:#d97706; font-size:8pt; font-weight:900; }
+  .footer { display:flex; justify-content:space-between; align-items:center; margin-top:2mm; border-top:1px solid #e2e8f0; padding-top:1.5mm; }
+  .footer-url { font-size:5pt; color:#94a3b8; word-break:break-all; flex:1; margin-right:3mm; }
+  .footer-note { font-size:5.5pt; color:#475569; text-align:right; flex-shrink:0; }
+  .btn { display:block; width:100%; margin:3mm 0 0; padding:2.5mm; background:#7c3aed; color:#fff; border:none; border-radius:3mm; font-size:11pt; font-weight:700; cursor:pointer; }
+</style></head><body>
+<div class="top">
+  <div class="top-left">
+    <div class="brand">🎱 BINGO CARD</div>
+    <div class="room-name">${room.name}</div>
+    <div class="badges">
+      <span class="badge round">รอบ ${round.round_number} · ${patternLabel}</span>
+      ${prizeHtml}
+      ${priceHtml}
+    </div>
+  </div>
+  <div class="top-right">
+    <div class="seq">#${String(seq).padStart(3, '0')}</div>
+    <div class="seq-label">ใบที่</div>
+    <div id="qr"></div>
+  </div>
+</div>
+<div class="alias">${alias}</div>
+<table>
+  <thead><tr>${colHeaders}</tr></thead>
+  <tbody>${gridRows}</tbody>
+</table>
+<div class="footer">
+  <div class="footer-url">${qrUrl}</div>
+  <div class="footer-note">📱 สแกน QR เพื่อติดตามบนมือถือ</div>
+</div>
+<button class="btn no-print" onclick="window.print()">🖨️ พิมพ์บัตร (100×150mm)</button>
+<script>
+(function() {
+  try {
+    new QRCode(document.getElementById('qr'), {
+      text: '${safeUrl}',
+      width: 84, height: 84,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } catch(e) {}
+})();
+<\/script>
+</body></html>`);
+    win.document.close();
+  };
+
+  /* ── Dispatch to correct print format ───────────────────────────── */
+  const doPrint = (cardData, alias, type) => {
+    if (!cardData || !selectedRoom || !selectedRound) return;
     const numbers = cardData.numbers;
     const rows = Array.from({ length: 5 }, (_, r) =>
       Array.from({ length: 5 }, (_, c) => numbers[r * 5 + c])
     );
-    const seq = alreadySold ? existingSeq : soldCount;  // sold count refreshed after generatePreview
-    const room  = selectedRoom;
-    const round = selectedRound;
-    const win = window.open('', '_blank', 'width=400,height=650');
-    win.document.write(`<!DOCTYPE html><html><head>
-    <meta charset="utf-8">
-    <title>Bingo #${seq} — ${alias}</title>
-    <style>
-      @page { size: 100mm 180mm; margin: 4mm; }
-      @media print { .no-print { display:none!important; } html,body { width:100mm; height:180mm; } }
-      * { box-sizing:border-box; margin:0; padding:0; }
-      body { font-family:'Segoe UI',Tahoma,sans-serif; background:#fff; width:100mm; padding:3mm; }
-      .hd { text-align:center; border-bottom:1.5pt solid #333; padding-bottom:3mm; margin-bottom:3mm; }
-      .room  { font-size:9pt; color:#555; }
-      .round { font-size:8.5pt; color:#d97706; font-weight:700; margin:1.5mm 0; line-height:1.3 }
-      .seq   { display:inline-block; background:#1e1b4b; color:#fff; font-size:8pt; font-weight:900;
-               padding:1mm 3mm; border-radius:4mm; margin:1mm 0; }
-      .price { font-size:9pt; color:#059669; font-weight:700; margin:1mm 0; }
-      .alias { font-size:26pt; font-weight:900; color:#1e1b4b; line-height:1.1; margin:2mm 0; letter-spacing:1px; }
-      table  { border-collapse:collapse; width:100%; margin-top:3mm; }
-      th,td  { border:1.5pt solid #222; text-align:center; padding:0; }
-      th     { padding:2mm 1mm; font-size:14pt; font-weight:900; color:#fff; }
-      td     { height:17mm; font-size:17pt; font-weight:800; color:#1e1b4b; }
-      .free  { background:#fef3c7; color:#d97706; font-size:9pt; font-weight:900; }
-      .btn   { display:block; width:100%; margin:3mm 0 0; padding:2.5mm;
-               background:#7c3aed; color:#fff; border:none; border-radius:3mm;
-               font-size:11pt; font-weight:700; cursor:pointer; }
-    </style></head><body>
-    <div class="hd">
-      <div class="room">🎱 ${room.name}</div>
-      <div class="round">รอบที่ ${round.round_number}${round.prize ? ` — 🎁 ${round.prize}` : ''}${round.is_golden ? ' ⚡' : ''}</div>
-      <div class="round">${PATTERN_LABEL[round.pattern] || round.pattern}</div>
-      <div class="seq">ใบที่ ${seq}</div>
-      ${room.ticket_price > 0 ? `<div class="price">${fmt(room.ticket_price)}</div>` : ''}
-      <div class="alias">${alias}</div>
-    </div>
-    <button class="btn no-print" onclick="window.print()">🖨️ พิมพ์บัตร (100×180mm)</button>
-    <table>
-      <thead><tr>${BINGO_COL.map((c,i)=>`<th style="background:${COL_COLOR[i]}">${c}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map(row=>`<tr>${row.map(n=>n===0?'<td class="free">FREE</td>':`<td>${n}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table>
-    </body></html>`);
-    win.document.close();
+    const seq = alreadySold ? existingSeq : soldCount;
+    const qrUrl = buildQrUrl(selectedRoom.id, selectedRound.id, alias);
+    const args = { rows, seq, room: selectedRoom, round: selectedRound, alias, qrUrl };
+    const t = type || printType;
+    if (t === 'mobile') doPrintMobile(args);
+    else doPrintPaper(args);
   };
 
   const handleSell = async () => {
@@ -169,13 +305,13 @@ export default function BingoSell() {
   };
 
   if (!isTeacher) return (
-    <div style={{ minHeight:'100dvh', display:'flex', alignItems:'center', justifyContent:'center',
-      background:'#0f172a', color:'#fff', fontFamily:"'Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: '#0f172a', color: '#fff', fontFamily: "'Segoe UI',sans-serif" }}>
       <p>ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
     </div>
   );
 
-  // ── Preview card component ─────────────────────────────────────
+  /* ── Card preview (inline) ────────────────────────────────────────── */
   const CardPreview = ({ card, alias, seq }) => {
     if (!card) return null;
     const numbers = card.numbers;
@@ -310,7 +446,7 @@ export default function BingoSell() {
             </div>
           )}
 
-          {/* Sold summary for selected round */}
+          {/* Sold summary */}
           {selectedRound && roomDetail && (
             <div style={{ borderRadius: '16px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -337,6 +473,44 @@ export default function BingoSell() {
 
           {/* Sell form */}
           <div style={{ borderRadius: '16px', padding: '20px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
+
+            {/* Print type selector */}
+            <div style={{ marginBottom: '14px' }}>
+              <p style={{ margin: '0 0 8px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                🖨️ รูปแบบการพิมพ์
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {/* Paper card option */}
+                <button
+                  onClick={() => setPrintType('paper')}
+                  style={{
+                    flex: 1, padding: '10px 8px', borderRadius: '12px', cursor: 'pointer',
+                    border: `2px solid ${printType === 'paper' ? 'rgba(52,211,153,0.6)' : 'rgba(255,255,255,0.1)'}`,
+                    background: printType === 'paper' ? 'rgba(52,211,153,0.12)' : 'rgba(255,255,255,0.03)',
+                    color: printType === 'paper' ? '#34d399' : 'rgba(255,255,255,0.45)',
+                    transition: 'all 0.15s', textAlign: 'left',
+                  }}>
+                  <div style={{ fontSize: '16px', marginBottom: '2px' }}>📄</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700 }}>บัตรกระดาษ</div>
+                  <div style={{ fontSize: '10px', opacity: 0.7 }}>100×150mm · มีตาราง Bingo</div>
+                </button>
+                {/* Mobile ticket option */}
+                <button
+                  onClick={() => setPrintType('mobile')}
+                  style={{
+                    flex: 1, padding: '10px 8px', borderRadius: '12px', cursor: 'pointer',
+                    border: `2px solid ${printType === 'mobile' ? 'rgba(96,165,250,0.6)' : 'rgba(255,255,255,0.1)'}`,
+                    background: printType === 'mobile' ? 'rgba(96,165,250,0.12)' : 'rgba(255,255,255,0.03)',
+                    color: printType === 'mobile' ? '#60a5fa' : 'rgba(255,255,255,0.45)',
+                    transition: 'all 0.15s', textAlign: 'left',
+                  }}>
+                  <div style={{ fontSize: '16px', marginBottom: '2px' }}>📱</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700 }}>ตั๋วมือถือ</div>
+                  <div style={{ fontSize: '10px', opacity: 0.7 }}>80mm · QR สแกนบนมือถือ</div>
+                </button>
+              </div>
+            </div>
+
             <p style={{ margin: '0 0 14px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               🎫 ขายใบที่ <span style={{ color: '#34d399', fontSize: '16px', fontWeight: 900 }}>#{seqNum}</span>
               {selectedRoom?.ticket_price > 0 && (
@@ -395,10 +569,13 @@ export default function BingoSell() {
                     style={{
                       flex: 2, padding: '11px', borderRadius: '12px', fontSize: '14px', fontWeight: 900,
                       border: 'none', cursor: !studentId.trim() || selling ? 'not-allowed' : 'pointer',
-                      background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff',
+                      background: printType === 'mobile'
+                        ? 'linear-gradient(135deg,#3b82f6,#2563eb)'
+                        : 'linear-gradient(135deg,#f59e0b,#d97706)',
+                      color: '#fff',
                       opacity: !studentId.trim() || selling ? 0.4 : 1,
                     }}>
-                    {selling ? '⏳ กำลังสร้าง...' : '🖨️ ขาย & พิมพ์'}
+                    {selling ? '⏳ กำลังสร้าง...' : printType === 'mobile' ? '🖨️ ขาย & พิมพ์ตั๋ว 80mm' : '🖨️ ขาย & พิมพ์บัตร'}
                   </button>
                 </div>
               </>
@@ -412,17 +589,24 @@ export default function BingoSell() {
                 <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   ตัวอย่างบัตร
                 </p>
-                <button
-                  onClick={() => doPrint(preview.card, preview.alias)}
-                  style={{ padding: '5px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, border: '1px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.12)', color: '#fbbf24', cursor: 'pointer' }}>
-                  🖨️ พิมพ์อีกครั้ง
-                </button>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => doPrint(preview.card, preview.alias, 'paper')}
+                    style={{ padding: '5px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, border: '1px solid rgba(52,211,153,0.4)', background: 'rgba(52,211,153,0.1)', color: '#34d399', cursor: 'pointer' }}>
+                    📄 100×150
+                  </button>
+                  <button
+                    onClick={() => doPrint(preview.card, preview.alias, 'mobile')}
+                    style={{ padding: '5px 10px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, border: '1px solid rgba(96,165,250,0.4)', background: 'rgba(96,165,250,0.1)', color: '#60a5fa', cursor: 'pointer' }}>
+                    📱 80mm
+                  </button>
+                </div>
               </div>
               <CardPreview card={preview.card} alias={preview.alias} seq={alreadySold ? existingSeq : soldCount} />
             </div>
           )}
 
-          {/* Sold list for selected round (full) */}
+          {/* Sold list for selected round */}
           {selectedRound && uniqueAliases.length > 0 && (
             <div style={{ borderRadius: '16px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
               <p style={{ margin: '0 0 10px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
