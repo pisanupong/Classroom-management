@@ -199,10 +199,10 @@ ${priceHtml}
 <title>Bingo Card #${seq} — ${alias}</title>
 <script src="${QRCODE_CDN}"><\/script>
 <style>
-  @page { size: 100mm 150mm; margin: 4mm; }
-  @media print { .no-print { display:none!important; } html,body { width:100mm; height:150mm; overflow:hidden; } }
+  @page { size: 100mm 150mm; margin: 6mm; }
+  @media print { .no-print { display:none!important; } html,body { width:88mm; height:138mm; overflow:hidden; } }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Segoe UI',Tahoma,sans-serif; background:#fff; width:92mm; color:#1e293b; }
+  body { font-family:'Segoe UI',Tahoma,sans-serif; background:#fff; width:88mm; color:#1e293b; }
   .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2pt solid #7c3aed; padding-bottom:2mm; margin-bottom:2mm; }
   .top-left { flex:1; min-width:0; }
   .brand { font-size:11pt; font-weight:900; color:#7c3aed; letter-spacing:1px; }
