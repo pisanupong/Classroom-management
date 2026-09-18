@@ -31,6 +31,8 @@ export default function BingoSell() {
   const [selling,       setSelling]       = useState(false);
   const [lastSold,      setLastSold]      = useState(null);
   const [printType,     setPrintType]     = useState('paper'); // 'mobile' | 'paper'
+  const [tplAlias,      setTplAlias]      = useState('TEMPLATE');
+  const [tplSeq,        setTplSeq]        = useState('999');
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -327,7 +329,8 @@ ${priceHtml}
     const mockRoom  = { name: selectedRoom?.name  || 'BINGO ROOM', ticket_price: selectedRoom?.ticket_price || 0 };
     const mockRound = { round_number: selectedRound?.round_number || 1, pattern: selectedRound?.pattern || 'line', prize: selectedRound?.prize || '' };
     const mockQrUrl = `${window.location.origin}/bingo`;
-    const args = { rows, seq: 999, room: mockRoom, round: mockRound, alias: 'TEMPLATE', qrUrl: mockQrUrl };
+    const seqVal = parseInt(tplSeq, 10) || 999;
+    const args = { rows, seq: seqVal, room: mockRoom, round: mockRound, alias: tplAlias || 'TEMPLATE', qrUrl: mockQrUrl };
     if (type === 'mobile') doPrintMobile(args);
     else doPrintPaper(args);
   };
@@ -564,6 +567,37 @@ ${priceHtml}
               <p style={{ margin: '0 0 8px', fontSize: '11px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 🧪 ทดสอบพิมพ์ตัวอย่าง
               </p>
+              {/* Editable fields */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginBottom: '3px' }}>ชื่อ / Alias</label>
+                  <input
+                    value={tplAlias}
+                    onChange={e => setTplAlias(e.target.value)}
+                    placeholder="TEMPLATE"
+                    style={{
+                      width: '100%', padding: '7px 10px', borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+                      color: '#fff', fontSize: '13px', fontWeight: 700, textAlign: 'center',
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginBottom: '3px' }}>ใบที่ #</label>
+                  <input
+                    value={tplSeq}
+                    onChange={e => setTplSeq(e.target.value)}
+                    type="number"
+                    min="1"
+                    style={{
+                      width: '100%', padding: '7px 10px', borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+                      color: '#fff', fontSize: '13px', fontWeight: 700, textAlign: 'center',
+                    }}
+                  />
+                </div>
+              </div>
+              {/* Print buttons */}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => doTemplatePrint('paper')}
