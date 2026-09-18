@@ -1,6 +1,5 @@
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
 
 const QRCODE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
 const BINGO_COL = ['B', 'I', 'N', 'G', 'O'];
@@ -58,10 +57,24 @@ const Slider = ({ label, value, onChange, min, max, step=1, unit='' }) => (
 );
 
 /* ─── Main component ──────────────────────────── */
+const TEMPLATE_PASSWORD = 'Pbc2026';
+
 export default function BingoTemplate() {
-  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
-  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
+
+  const [authed,  setAuthed]  = useState(() => sessionStorage.getItem('tpl_auth') === '1');
+  const [pwInput, setPwInput] = useState('');
+  const [pwError, setPwError] = useState(false);
+
+  const handleLogin = () => {
+    if (pwInput === TEMPLATE_PASSWORD) {
+      sessionStorage.setItem('tpl_auth', '1');
+      setAuthed(true);
+      setPwError(false);
+    } else {
+      setPwError(true);
+    }
+  };
 
   const [tab, setTab] = useState('paper');
 
@@ -86,10 +99,39 @@ export default function BingoTemplate() {
   /* ── Card numbers ── */
   const [rows, setRows] = useState(() => genRows());
 
-  if (!isTeacher) {
+  if (!authed) {
     return (
-      <div style={{ minHeight:'100dvh', display:'flex', alignItems:'center', justifyContent:'center', background:'#0f172a', color:'#fff' }}>
-        <p>ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+      <div style={{ minHeight:'100dvh', display:'flex', alignItems:'center', justifyContent:'center', background:'#0f172a', fontFamily:"'Segoe UI',sans-serif" }}>
+        <div style={{ width:'320px', padding:'32px', background:'rgba(255,255,255,0.05)', borderRadius:'20px', border:'1px solid rgba(255,255,255,0.1)', textAlign:'center' }}>
+          <div style={{ fontSize:'40px', marginBottom:'12px' }}>🖨️</div>
+          <h2 style={{ color:'#fff', margin:'0 0 6px', fontSize:'20px', fontWeight:900 }}>Template พิมพ์ตั๋ว</h2>
+          <p style={{ color:'rgba(255,255,255,0.4)', fontSize:'13px', margin:'0 0 24px' }}>กรอกรหัสผ่านเพื่อเข้าใช้งาน</p>
+          <input
+            type="password"
+            value={pwInput}
+            onChange={e => { setPwInput(e.target.value); setPwError(false); }}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()}
+            placeholder="รหัสผ่าน"
+            autoFocus
+            style={{
+              width:'100%', padding:'12px 16px', borderRadius:'12px', marginBottom:'12px',
+              background:'rgba(255,255,255,0.08)', border:`2px solid ${pwError ? '#ef4444' : 'rgba(255,255,255,0.15)'}`,
+              color:'#fff', fontSize:'16px', fontWeight:700, textAlign:'center', outline:'none',
+            }}
+          />
+          {pwError && <p style={{ color:'#ef4444', fontSize:'12px', margin:'0 0 8px' }}>รหัสผ่านไม่ถูกต้อง</p>}
+          <button
+            onClick={handleLogin}
+            style={{
+              width:'100%', padding:'12px', borderRadius:'12px', fontSize:'14px', fontWeight:900,
+              border:'none', cursor:'pointer', background:'linear-gradient(135deg,#7c3aed,#6d28d9)', color:'#fff',
+            }}>
+            เข้าใช้งาน
+          </button>
+          <button onClick={() => navigate('/bingo')} style={{ marginTop:'12px', background:'none', border:'none', color:'rgba(255,255,255,0.3)', fontSize:'12px', cursor:'pointer' }}>
+            ← กลับ
+          </button>
+        </div>
       </div>
     );
   }

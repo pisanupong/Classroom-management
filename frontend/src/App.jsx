@@ -86,7 +86,7 @@ function App() {
             <Route path="/bingo/pr/:id" element={<BingoPR />} />
             <Route path="/bingo/now" element={<BingoNow />} />
             <Route path="/bingo/now/:id" element={<BingoNow />} />
-            <Route path="/bingo/template" element={<ProtectedRoute><BingoTemplate /></ProtectedRoute>} />
+            <Route path="/bingo/template" element={<BingoTemplate />} />
           </Routes>
         </Router>
       </SettingsProvider>
