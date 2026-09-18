@@ -193,72 +193,97 @@ ${priceHtml}
       `<th style="background:${COL_COLOR[i]}">${c}</th>`
     ).join('');
 
-    const win = window.open('', '_blank', 'width=420,height=620');
+    // 90mm × 150mm, margin 6mm → printable 78mm × 138mm
+    // window width = 78mm × (96px/25.4mm) ≈ 295px + chrome
+    const win = window.open('', '_blank', 'width=360,height=660');
     win.document.write(`<!DOCTYPE html><html><head>
 <meta charset="utf-8">
 <title>Bingo Card #${seq} — ${alias}</title>
 <script src="${QRCODE_CDN}"><\/script>
 <style>
-  @page { size: 100mm 150mm; margin: 7mm; }
-  @media print { .no-print { display:none!important; } html,body { width:100%; overflow:hidden; } }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Segoe UI',Tahoma,sans-serif; background:#fff; width:100%; color:#1e293b; }
-  .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2pt solid #7c3aed; padding-bottom:2mm; margin-bottom:2mm; overflow:hidden; }
+  /* ── Print: @page locks paper size & margin ── */
+  @page { size: 90mm 150mm; margin: 6mm; }
+  @media print {
+    .no-print { display:none!important; }
+    html,body { width:100%; margin:0; padding:0; background:#fff; }
+    .card { width:100%; box-shadow:none; }
+  }
+  /* ── Screen: card shows at exact print width so preview = print ── */
+  @media screen {
+    html { background:#94a3b8; padding:8px; }
+    .card { box-shadow:0 4px 24px rgba(0,0,0,0.35); }
+    .btn-wrap { padding:6px 0 2px; text-align:center; }
+  }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',Tahoma,sans-serif; color:#1e293b; background:#fff; }
+  /* card container = printable area 78mm × 138mm */
+  .card { width:78mm; background:#fff; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start;
+    border-bottom:2pt solid #7c3aed; padding-bottom:2mm; margin-bottom:2mm; }
   .top-left { flex:1; min-width:0; overflow:hidden; }
-  .brand { font-size:11pt; font-weight:900; color:#7c3aed; letter-spacing:1px; }
-  .room-name { font-size:6.5pt; color:#475569; margin-top:0.5mm; }
+  .brand { font-size:10pt; font-weight:900; color:#7c3aed; letter-spacing:1px; }
+  .room-name { font-size:6pt; color:#475569; margin-top:0.5mm; }
   .badges { display:flex; flex-wrap:wrap; gap:1mm; margin-top:1.5mm; }
-  .badge { font-size:6.5pt; font-weight:700; padding:0.5mm 2mm; border-radius:1.5mm; white-space:nowrap; max-width:52mm; overflow:hidden; text-overflow:ellipsis; }
+  .badge { font-size:6pt; font-weight:700; padding:0.5mm 2mm; border-radius:1.5mm;
+    white-space:nowrap; max-width:44mm; overflow:hidden; text-overflow:ellipsis; }
   .badge.round { background:#ede9fe; color:#7c3aed; }
   .badge.prize { background:#fef3c7; color:#d97706; }
   .badge.price { background:#ecfdf5; color:#059669; }
-  .top-right { display:flex; flex-direction:column; align-items:flex-end; gap:1mm; flex-shrink:0; margin-left:2mm; }
-  .seq { font-size:28pt; font-weight:900; color:#1e1b4b; line-height:1; }
-  .seq-label { font-size:6pt; color:#94a3b8; text-align:right; }
-  #qr img, #qr canvas { width:22mm!important; height:22mm!important; display:block; }
-  .alias { font-size:14pt; font-weight:900; color:#1e1b4b; text-align:center; margin:1.5mm 0; letter-spacing:1px; }
-  table { border-collapse:collapse; width:100%; }
-  th,td { border:1.5pt solid #222; text-align:center; padding:0; }
-  th { padding:2mm 1mm; font-size:13pt; font-weight:900; color:#fff; }
-  td { height:16mm; font-size:17pt; font-weight:800; color:#1e1b4b; }
+  .top-right { display:flex; flex-direction:column; align-items:flex-end;
+    gap:1mm; flex-shrink:0; margin-left:2mm; }
+  .seq { font-size:24pt; font-weight:900; color:#1e1b4b; line-height:1; }
+  .seq-label { font-size:5.5pt; color:#94a3b8; text-align:right; }
+  #qr img, #qr canvas { width:20mm!important; height:20mm!important; display:block; }
+  .alias { font-size:13pt; font-weight:900; color:#1e1b4b; text-align:center;
+    margin:1.5mm 0; letter-spacing:1px; }
+  table { border-collapse:collapse; width:100%; table-layout:fixed; }
+  th,td { border:1.5pt solid #333; text-align:center; padding:0; }
+  th { padding:2mm 0; font-size:12pt; font-weight:900; color:#fff; }
+  td { height:15mm; font-size:16pt; font-weight:800; color:#1e1b4b; }
   .free { background:#fef3c7; color:#d97706; font-size:8pt; font-weight:900; }
-  .footer { display:flex; justify-content:space-between; align-items:center; margin-top:2mm; border-top:1px solid #e2e8f0; padding-top:1.5mm; }
-  .footer-url { font-size:5pt; color:#94a3b8; word-break:break-all; flex:1; margin-right:3mm; }
-  .footer-note { font-size:5.5pt; color:#475569; text-align:right; flex-shrink:0; }
-  .btn { display:block; width:100%; margin:3mm 0 0; padding:2.5mm; background:#7c3aed; color:#fff; border:none; border-radius:3mm; font-size:11pt; font-weight:700; cursor:pointer; }
+  .footer { display:flex; justify-content:space-between; align-items:center;
+    margin-top:2mm; border-top:1px solid #e2e8f0; padding-top:1mm; }
+  .footer-url { font-size:4.5pt; color:#94a3b8; word-break:break-all; flex:1; margin-right:2mm; }
+  .footer-note { font-size:5pt; color:#475569; text-align:right; flex-shrink:0; }
+  .btn { display:block; width:78mm; padding:8px; background:#7c3aed; color:#fff;
+    border:none; border-radius:6px; font-size:12pt; font-weight:700; cursor:pointer; }
 </style></head><body>
-<div class="top">
-  <div class="top-left">
-    <div class="brand">🎱 BINGO CARD</div>
-    <div class="room-name">${room.name}</div>
-    <div class="badges">
-      <span class="badge round">รอบ ${round.round_number} · ${patternLabel}</span>
-      ${prizeHtml}
-      ${priceHtml}
+<div class="card">
+  <div class="top">
+    <div class="top-left">
+      <div class="brand">🎱 BINGO CARD</div>
+      <div class="room-name">${room.name}</div>
+      <div class="badges">
+        <span class="badge round">รอบ ${round.round_number} · ${patternLabel}</span>
+        ${prizeHtml}
+        ${priceHtml}
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="seq">#${String(seq).padStart(3, '0')}</div>
+      <div class="seq-label">ใบที่</div>
+      <div id="qr"></div>
     </div>
   </div>
-  <div class="top-right">
-    <div class="seq">#${String(seq).padStart(3, '0')}</div>
-    <div class="seq-label">ใบที่</div>
-    <div id="qr"></div>
+  <div class="alias">${alias}</div>
+  <table>
+    <thead><tr>${colHeaders}</tr></thead>
+    <tbody>${gridRows}</tbody>
+  </table>
+  <div class="footer">
+    <div class="footer-url">${qrUrl}</div>
+    <div class="footer-note">📱 สแกน QR ติดตามบนมือถือ</div>
   </div>
 </div>
-<div class="alias">${alias}</div>
-<table>
-  <thead><tr>${colHeaders}</tr></thead>
-  <tbody>${gridRows}</tbody>
-</table>
-<div class="footer">
-  <div class="footer-url">${qrUrl}</div>
-  <div class="footer-note">📱 สแกน QR เพื่อติดตามบนมือถือ</div>
+<div class="btn-wrap no-print">
+  <button class="btn" onclick="window.print()">🖨️ พิมพ์บัตร (90×150mm)</button>
 </div>
-<button class="btn no-print" onclick="window.print()">🖨️ พิมพ์บัตร (100×150mm)</button>
 <script>
 (function() {
   try {
     new QRCode(document.getElementById('qr'), {
       text: '${safeUrl}',
-      width: 84, height: 84,
+      width: 76, height: 76,
       colorDark: '#000000', colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.M
     });
