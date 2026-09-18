@@ -39,20 +39,25 @@ jobs:
           target: "/opt/classroom-app"
           overwrite: true
 
+      # ── Setup SSH key ─────────────────────────────────────────────
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
       # ── Inject new dist into running container ────────────────────
       - name: Update frontend container
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            echo "=== copy new dist into container ==="
-            docker cp /opt/classroom-app/frontend/dist/. classroom-frontend:/usr/share/nginx/html/
-            echo "=== reload nginx ==="
-            docker exec classroom-frontend nginx -s reload || docker restart classroom-frontend
-            echo "=== done! ==="
-            echo "Site: http://acp-sixseven.online:8081/"
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            echo '=== copy new dist into container ===' && \
+            docker cp /opt/classroom-app/frontend/dist/. classroom-frontend:/usr/share/nginx/html/ && \
+            echo '=== reload nginx ===' && \
+            (docker exec classroom-frontend nginx -s reload || docker restart classroom-frontend) && \
+            echo '=== done! ===' && \
+            echo 'Site: http://acp-sixseven.online:8081/'
+          "
 
       # ── Also upload backend + apply schema + restart ─────────────
       - name: Upload backend source to VPS
@@ -66,22 +71,19 @@ jobs:
           overwrite: true
 
       - name: Apply Prisma schema & restart backend
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            echo "=== copy new backend into container ==="
-            docker cp /opt/classroom-app/backend/. classroom-backend:/app/
-            echo "=== install dependencies (picks up prisma moved to deps) ==="
-            docker exec classroom-backend npm install --omit=dev
-            echo "=== regenerate prisma client ==="
-            docker exec classroom-backend npx prisma generate
-            echo "=== apply prisma schema (db push) ==="
-            docker exec classroom-backend npx prisma db push --accept-data-loss || echo "db push skipped"
-            echo "=== restart backend ==="
-            docker restart classroom-backend
-            sleep 4
-            docker ps | grep classroom
-            echo "=== done! ==="
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            echo '=== copy new backend into container ===' && \
+            docker cp /opt/classroom-app/backend/. classroom-backend:/app/ && \
+            echo '=== install dependencies ===' && \
+            docker exec classroom-backend npm install --omit=dev && \
+            echo '=== regenerate prisma client ===' && \
+            docker exec classroom-backend npx prisma generate && \
+            echo '=== apply prisma schema ===' && \
+            (docker exec classroom-backend npx prisma db push --accept-data-loss || echo 'db push skipped') && \
+            echo '=== restart backend ===' && \
+            docker restart classroom-backend && \
+            sleep 4 && \
+            docker ps | grep classroom && \
+            echo '=== done! ==='
+          "
