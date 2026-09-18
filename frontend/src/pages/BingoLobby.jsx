@@ -102,6 +102,11 @@ export default function BingoLobby() {
               style={{ background: 'rgba(52,211,153,0.15)', border: '1px solid rgba(52,211,153,0.4)', color: '#34d399' }}>
               💰 คลังรางวัล
             </button>
+            <button onClick={() => window.open('/bingo/now', '_blank')}
+              className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
+              style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24' }}>
+              🎯 Bingo Now
+            </button>
             <button onClick={() => window.open('/bingo/pr', '_blank')}
               className="px-4 py-2 rounded-xl font-bold text-sm transition-all hover:scale-[1.02]"
               style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.4)', color: '#d4af37' }}>

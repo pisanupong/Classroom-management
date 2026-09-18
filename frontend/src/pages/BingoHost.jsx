@@ -537,6 +537,11 @@ export default function BingoHost() {
               color: '#818cf8', background: 'rgba(99,102,241,0.1)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
             📺 Display
           </button>
+          <button onClick={() => window.open(`/bingo/now/${id}`, '_blank')}
+            style={{ padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.5)',
+              color: '#fbbf24', background: 'rgba(251,191,36,0.08)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+            🎯 Now
+          </button>
           <button onClick={() => window.open(`/bingo/pr/${id}`, '_blank')}
             style={{ padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(212,175,55,0.5)',
               color: '#d4af37', background: 'rgba(212,175,55,0.08)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>

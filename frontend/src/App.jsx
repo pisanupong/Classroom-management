@@ -36,6 +36,7 @@ import BingoDisplay from './pages/BingoDisplay';
 import BingoAccount from './pages/BingoAccount';
 import BingoSell from './pages/BingoSell';
 import BingoPR from './pages/BingoPR';
+import BingoNow from './pages/BingoNow';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -82,6 +83,8 @@ function App() {
             <Route path="/bingo/sell" element={<ProtectedRoute><BingoSell /></ProtectedRoute>} />
             <Route path="/bingo/pr" element={<BingoPR />} />
             <Route path="/bingo/pr/:id" element={<BingoPR />} />
+            <Route path="/bingo/now" element={<BingoNow />} />
+            <Route path="/bingo/now/:id" element={<BingoNow />} />
           </Routes>
         </Router>
       </SettingsProvider>
