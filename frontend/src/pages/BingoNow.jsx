@@ -36,7 +36,7 @@ const BG_PRESETS = [
 
 /* ── inject global CSS ────────────────────────────────────────── */
 const GLOBAL_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Prompt:wght@400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Orbitron:wght@700;900&family=Prompt:wght@400;700;900&display=swap');
 
 @keyframes numSettle {
   0%   { transform:scale(0.6); opacity:0.2; }
@@ -60,11 +60,122 @@ const GLOBAL_CSS = `
   0%,100% { opacity:0.08; transform:translateY(0); }
   50%      { opacity:0.35; transform:translateY(-10px); }
 }
-.num-settle { animation: numSettle 0.45s cubic-bezier(0.22,1,0.36,1) forwards; }
-.num-glow   { animation: numGlow 2.5s ease-in-out infinite; }
-.col-settle { animation: colSettle 0.3s ease forwards; }
-.winner-pop { animation: winnerPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+/* Harry Potter */
+@keyframes hpSettle {
+  0%   { transform:scale(0.2) translateY(50px) rotate(-12deg); opacity:0; filter:blur(8px); }
+  55%  { transform:scale(1.12) translateY(-6px) rotate(2deg); opacity:1; filter:blur(0); }
+  80%  { transform:scale(0.97) translateY(2px) rotate(-0.5deg); }
+  100% { transform:scale(1) translateY(0) rotate(0); }
+}
+@keyframes hpGlow {
+  0%,100% { filter: brightness(1.1) drop-shadow(0 0 20px #d4af37) drop-shadow(0 0 50px #b8860b88); }
+  50%      { filter: brightness(1.5) drop-shadow(0 0 45px #ffd700) drop-shadow(0 0 100px #d4af37) drop-shadow(0 0 150px #ffec7055); }
+}
+/* Casino */
+@keyframes casinoSettle {
+  0%   { transform:scale(1.7); opacity:0.5; }
+  55%  { transform:scale(0.93); opacity:1; }
+  75%  { transform:scale(1.04); }
+  100% { transform:scale(1); }
+}
+@keyframes casinoGlow {
+  0%,100% { filter: brightness(1.1) drop-shadow(0 0 10px currentColor) drop-shadow(0 0 25px currentColor); }
+  50%      { filter: brightness(1.6) drop-shadow(0 0 30px currentColor) drop-shadow(0 0 70px currentColor); }
+}
+/* Matrix */
+@keyframes matrixSettle {
+  0%   { opacity:0; transform:translateY(-60px); filter:blur(4px); }
+  65%  { opacity:1; transform:translateY(6px); filter:blur(0); }
+  100% { opacity:1; transform:translateY(0); }
+}
+@keyframes matrixGlow {
+  0%,100% { filter: brightness(1) drop-shadow(0 0 10px #00ff41) drop-shadow(0 0 25px #00aa2a); }
+  50%      { filter: brightness(1.4) drop-shadow(0 0 30px #00ff41) drop-shadow(0 0 70px #00cc33); }
+}
+/* Neon */
+@keyframes neonSettle {
+  0%   { transform:scale(0.6); opacity:0; }
+  25%  { transform:scale(1.15); opacity:0.6; }
+  42%  { transform:scale(0.9); opacity:0.3; }
+  62%  { transform:scale(1.08); opacity:1; }
+  82%  { transform:scale(0.97); }
+  100% { transform:scale(1); opacity:1; }
+}
+@keyframes neonGlow {
+  0%,100% { filter: brightness(1.2) drop-shadow(0 0 8px currentColor) drop-shadow(0 0 25px currentColor); }
+  50%      { filter: brightness(1.8) drop-shadow(0 0 25px currentColor) drop-shadow(0 0 60px currentColor) drop-shadow(0 0 120px currentColor); }
+}
+@keyframes decoIn {
+  0%   { transform:scale(0.3); opacity:0; }
+  70%  { transform:scale(1.15); opacity:1; }
+  100% { transform:scale(1); opacity:1; }
+}
+.num-settle    { animation: numSettle 0.45s cubic-bezier(0.22,1,0.36,1) forwards; }
+.num-glow      { animation: numGlow 2.5s ease-in-out infinite; }
+.col-settle    { animation: colSettle 0.3s ease forwards; }
+.winner-pop    { animation: winnerPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.hp-settle     { animation: hpSettle 0.8s cubic-bezier(0.22,1,0.36,1) forwards; }
+.hp-glow       { animation: hpGlow 2s ease-in-out infinite; }
+.casino-settle { animation: casinoSettle 0.5s cubic-bezier(0.22,1,0.36,1) forwards; }
+.casino-glow   { animation: casinoGlow 1.2s ease-in-out infinite; }
+.matrix-settle { animation: matrixSettle 0.45s ease-out forwards; }
+.matrix-glow   { animation: matrixGlow 1.8s ease-in-out infinite; }
+.neon-settle   { animation: neonSettle 0.6s ease forwards; }
+.neon-glow     { animation: neonGlow 1.5s ease-in-out infinite; }
+.deco-in       { animation: decoIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 `;
+
+/* ── Animation themes ────────────────────────────────────────── */
+const THEMES = [
+  { id:'classic',      label:'ปกติ',           icon:'🎱' },
+  { id:'harry_potter', label:'แฮรี่ พอตเตอร์',  icon:'⚡' },
+  { id:'casino',       label:'คาสิโน',          icon:'🎰' },
+  { id:'matrix',       label:'เมทริกซ์',         icon:'💻' },
+  { id:'neon',         label:'นีออน',            icon:'🌟' },
+];
+
+const THEME_CONFIG = {
+  classic: {
+    spinRange: (col) => COL_RANGE[col],
+    steps: 22,
+    speed: (step, total) => step < total * 0.65 ? 55 : 95,
+    settleClass:'num-settle', glowClass:'num-glow',
+    color: (col) => COL_COLOR[col],
+    font: "'Orbitron','Prompt',sans-serif",
+  },
+  harry_potter: {
+    spinRange: (col) => COL_RANGE[col],
+    steps: 26,
+    speed: (step, total) => step < 4 ? 120 : step < total * 0.7 ? 88 : 150,
+    settleClass:'hp-settle', glowClass:'hp-glow',
+    color: () => '#d4af37',
+    font: "'Cinzel','Georgia',serif",
+  },
+  casino: {
+    spinRange: () => [1, 75],
+    steps: 38,
+    speed: (step, total) => Math.round(25 + (step / total) ** 2 * 200),
+    settleClass:'casino-settle', glowClass:'casino-glow',
+    color: (col) => COL_COLOR[col],
+    font: "'Orbitron','Prompt',sans-serif",
+  },
+  matrix: {
+    spinRange: () => [1, 75],
+    steps: 18,
+    speed: () => 38,
+    settleClass:'matrix-settle', glowClass:'matrix-glow',
+    color: () => '#00ff41',
+    font: "'Courier New',monospace",
+  },
+  neon: {
+    spinRange: (col) => COL_RANGE[col],
+    steps: 20,
+    speed: (step, total) => step < total * 0.75 ? 50 : 90,
+    settleClass:'neon-settle', glowClass:'neon-glow',
+    color: (col) => COL_COLOR[col],
+    font: "'Orbitron','Prompt',sans-serif",
+  },
+};
 
 /* ─── StarField ───────────────────────────────────────────────── */
 const StarField = () => {
@@ -92,16 +203,14 @@ const StarField = () => {
   );
 };
 
-/* ─── Big Number with slot-machine animation ─────────────────── */
-const BigNumber = ({ number, animKey, isLight }) => {
-  const [display, setDisplay]   = useState(number);
-  const [settled, setSettled]   = useState(true);
-  const intervalRef             = useRef(null);
-  // track animKey so the effect fires on every new draw
-  const prevKey = useRef(animKey);
+/* ─── Big Number with theme-aware slot-machine animation ─────── */
+const BigNumber = ({ number, animKey, isLight, theme = 'classic' }) => {
+  const [display, setDisplay] = useState(number);
+  const [settled, setSettled] = useState(true);
+  const timerRef              = useRef(null);
+  const prevKey               = useRef(animKey);
 
   useEffect(() => {
-    // inject CSS once
     const el = document.createElement('style');
     el.textContent = GLOBAL_CSS;
     document.head.appendChild(el);
@@ -109,56 +218,64 @@ const BigNumber = ({ number, animKey, isLight }) => {
   }, []);
 
   useEffect(() => {
-    if (animKey === prevKey.current && number === display) return; // no change
+    if (animKey === prevKey.current && number === display) return;
     prevKey.current = animKey;
-
-    clearInterval(intervalRef.current);
+    clearTimeout(timerRef.current);
 
     if (number == null) { setDisplay(null); setSettled(true); return; }
 
-    const finalNum  = number;
-    const col       = colOf(finalNum);
-    const totalSteps = 22;
-    let step = 0;
+    const cfg      = THEME_CONFIG[theme] || THEME_CONFIG.classic;
+    const finalNum = number;
+    const col      = colOf(finalNum);
+    const total    = cfg.steps;
 
     setSettled(false);
 
-    intervalRef.current = setInterval(() => {
-      step++;
-      if (step >= totalSteps) {
-        clearInterval(intervalRef.current);
+    const tick = (step) => {
+      if (step >= total) {
         setDisplay(finalNum);
         setSettled(true);
-      } else {
-        // random number in same BINGO column → slot-machine feel
-        setDisplay(randInCol(col));
+        return;
       }
-    }, step < 14 ? 55 : 95);
+      const [lo, hi] = cfg.spinRange(col);
+      setDisplay(Math.floor(Math.random() * (hi - lo + 1)) + lo);
+      const spd = typeof cfg.speed === 'function' ? cfg.speed(step, total) : cfg.speed;
+      timerRef.current = setTimeout(() => tick(step + 1), spd);
+    };
+    tick(0);
 
-    return () => clearInterval(intervalRef.current);
+    return () => clearTimeout(timerRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [animKey, number]);
+  }, [animKey, number, theme]);
 
-  const col   = display != null ? colOf(display) : null;
-  const color = col ? COL_COLOR[col] : (isLight ? '#1e293b' : '#fff');
+  const col      = display != null ? colOf(display) : null;
+  const cfg      = THEME_CONFIG[theme] || THEME_CONFIG.classic;
+  const color    = col ? cfg.color(col) : (isLight ? '#1e293b' : '#fff');
+  const colColor = (theme === 'harry_potter') ? '#d4af37'
+                 : (theme === 'matrix')       ? '#00ff41'
+                 : col ? COL_COLOR[col] : color;
 
   return (
     <div style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:'4px'}}>
 
+      {/* Harry Potter top decoration */}
+      {theme === 'harry_potter' && settled && col && (
+        <div key={`hp-t-${animKey}`} className="deco-in"
+          style={{fontSize:'2.2rem',lineHeight:1,filter:'drop-shadow(0 0 10px #d4af37)'}}>
+          ⚡
+        </div>
+      )}
+
       {/* Column letter */}
       {col && (
-        <div
-          key={`col-${animKey}-${settled}`}
+        <div key={`col-${animKey}-${settled}`}
           className={settled ? 'col-settle' : ''}
           style={{
-            fontSize:'clamp(1.8rem,4.5vw,3.5rem)',
-            fontWeight:900,
-            color: COL_COLOR[col],
-            fontFamily:"'Orbitron','Prompt',sans-serif",
+            fontSize:'clamp(1.8rem,4.5vw,3.5rem)', fontWeight:900,
+            color: colColor,
+            fontFamily: theme === 'matrix' ? "'Courier New',monospace" : "'Orbitron','Prompt',sans-serif",
             letterSpacing: settled ? '4px' : '12px',
-            opacity: settled ? 1 : 0.35,
-            marginBottom:'-6px',
-            transition:'opacity 0.15s',
+            opacity: settled ? 1 : 0.35, marginBottom:'-6px', transition:'opacity 0.15s',
           }}>
           {col}
         </div>
@@ -166,25 +283,43 @@ const BigNumber = ({ number, animKey, isLight }) => {
 
       {/* Main number */}
       <div
-        key={`num-${settled ? 'done' : animKey + '-' + display}`}
-        className={settled ? 'num-settle num-glow' : ''}
+        key={`num-${settled ? 'done' : `${animKey}-${display}`}`}
+        className={settled ? `${cfg.settleClass} ${cfg.glowClass}` : ''}
         style={{
-          fontSize:'clamp(5rem,17vw,15rem)',
-          fontWeight:900,
-          fontFamily:"'Orbitron','Prompt',sans-serif",
+          fontSize:'clamp(5rem,17vw,15rem)', fontWeight:900,
+          fontFamily: cfg.font,
           color: settled ? color : (isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)'),
-          lineHeight:1,
-          userSelect:'none',
-          minWidth:'3ch',
-          textAlign:'center',
+          lineHeight:1, userSelect:'none', minWidth:'3ch', textAlign:'center',
           transition:'color 0.1s',
-          // no text-shadow during spin (avoids white-box glare)
-          filter: settled && col
-            ? `drop-shadow(0 0 20px ${COL_COLOR[col]}88)`
-            : 'none',
+          filter: settled && col ? `drop-shadow(0 0 20px ${color}88)` : 'none',
         }}>
         {display ?? '—'}
       </div>
+
+      {/* Harry Potter bottom decoration */}
+      {theme === 'harry_potter' && settled && col && (
+        <div key={`hp-b-${animKey}`} className="deco-in"
+          style={{fontSize:'1.6rem',lineHeight:1,marginTop:'2px',opacity:0.85}}>
+          ✨🔮✨
+        </div>
+      )}
+
+      {/* Casino jackpot decoration */}
+      {theme === 'casino' && settled && col && (
+        <div key={`cas-${animKey}`} className="deco-in"
+          style={{fontSize:'1.2rem',letterSpacing:'10px',marginTop:'2px',opacity:0.7}}>
+          🎰🎰🎰
+        </div>
+      )}
+
+      {/* Matrix label */}
+      {theme === 'matrix' && settled && col && (
+        <div key={`mx-${animKey}`} className="deco-in"
+          style={{fontFamily:"'Courier New',monospace",fontSize:'0.85rem',color:'#00ff41',
+            letterSpacing:'3px',marginTop:'4px',opacity:0.7}}>
+          [SYSTEM LOCKED]
+        </div>
+      )}
     </div>
   );
 };
@@ -271,12 +406,15 @@ const SettingsPanel = ({
   textColor, setTextColor,
   tickerSize, setTickerSize,
   tickerSpeed, setTickerSpeed,
+  theme, setTheme,
+  prizeSize, setPrizeSize,
   isLight, onClose,
 }) => {
   const panelColor = isLight ? '#1e293b' : '#e2e8f0';
   const panelBg    = isLight ? 'rgba(250,250,250,0.97)' : 'rgba(10,10,26,0.97)';
   const inputBg    = isLight ? '#fff' : 'rgba(255,255,255,0.07)';
   const inputBorder= isLight ? '#e2e8f0' : 'rgba(255,255,255,0.15)';
+  const labelStyle = {fontSize:'0.72rem',opacity:0.45,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'6px'};
 
   return (
     <div style={{position:'fixed',right:0,top:0,bottom:0,width:'300px',
@@ -288,9 +426,27 @@ const SettingsPanel = ({
         <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',fontSize:'1.1rem',color:panelColor,opacity:0.6}}>✕</button>
       </div>
 
+      {/* Animation theme */}
+      <div>
+        <div style={labelStyle}>ธีมแอนิเมชันตัวเลข</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+          {THEMES.map(t => (
+            <button key={t.id} onClick={()=>setTheme(t.id)}
+              style={{padding:'6px 10px',borderRadius:'8px',cursor:'pointer',
+                fontSize:'0.75rem',fontWeight:600,whiteSpace:'nowrap',
+                border:`2px solid ${theme===t.id?'#7c3aed':'transparent'}`,
+                background: theme===t.id ? 'rgba(124,58,237,0.25)'
+                  : (isLight?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.06)'),
+                color:panelColor}}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Backgrounds */}
       <div>
-        <div style={{fontSize:'0.72rem',opacity:0.45,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'7px'}}>พื้นหลัง</div>
+        <div style={{...labelStyle,marginBottom:'7px'}}>พื้นหลัง</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'5px'}}>
           {BG_PRESETS.map(p => (
             <button key={p.label} onClick={()=>setBg(p)}
@@ -308,9 +464,20 @@ const SettingsPanel = ({
           style={{width:'100%',height:'32px',borderRadius:'7px',border:'none',cursor:'pointer',marginTop:'6px'}}/>
       </div>
 
+      {/* Prize image size */}
+      <div>
+        <div style={labelStyle}>ขนาดรูปของรางวัล — {prizeSize}px</div>
+        <input type="range" min={60} max={380} step={10} value={prizeSize}
+          onChange={e=>setPrizeSize(Number(e.target.value))}
+          style={{width:'100%',cursor:'pointer'}}/>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.68rem',opacity:0.4,marginTop:'3px'}}>
+          <span>เล็ก</span><span>ใหญ่</span>
+        </div>
+      </div>
+
       {/* Ticker text */}
       <div>
-        <div style={{fontSize:'0.72rem',opacity:0.45,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'6px'}}>ข้อความ Ticker</div>
+        <div style={labelStyle}>ข้อความ Ticker</div>
         <textarea value={text} onChange={e=>setText(e.target.value)}
           placeholder="พิมพ์ข้อความที่ต้องการวิ่งด้านล่าง..."
           rows={2}
@@ -321,7 +488,7 @@ const SettingsPanel = ({
 
       {/* Ticker color */}
       <div>
-        <div style={{fontSize:'0.72rem',opacity:0.45,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'6px'}}>สีข้อความ</div>
+        <div style={labelStyle}>สีข้อความ</div>
         <div style={{display:'flex',gap:'7px',flexWrap:'wrap'}}>
           {['#fbbf24','#f87171','#34d399','#60a5fa','#c084fc','#ffffff','#000000'].map(c=>(
             <div key={c} onClick={()=>setTextColor(c)} style={{
@@ -335,9 +502,7 @@ const SettingsPanel = ({
 
       {/* Ticker font size */}
       <div>
-        <div style={{fontSize:'0.72rem',opacity:0.45,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'6px'}}>
-          ขนาดตัวอักษร Ticker — {tickerSize}px
-        </div>
+        <div style={labelStyle}>ขนาดตัวอักษร Ticker — {tickerSize}px</div>
         <input type="range" min={14} max={56} step={2} value={tickerSize}
           onChange={e=>setTickerSize(Number(e.target.value))}
           style={{width:'100%',cursor:'pointer'}}/>
@@ -345,8 +510,8 @@ const SettingsPanel = ({
 
       {/* Ticker speed */}
       <div>
-        <div style={{fontSize:'0.72rem',opacity:0.45,textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:'6px'}}>
-          ความเร็ว Ticker — {tickerSpeed === 5 ? 'เร็วมาก' : tickerSpeed <= 12 ? 'เร็ว' : tickerSpeed <= 25 ? 'กลาง' : 'ช้า'}
+        <div style={labelStyle}>
+          ความเร็ว Ticker — {tickerSpeed <= 5 ? 'เร็วมาก' : tickerSpeed <= 12 ? 'เร็ว' : tickerSpeed <= 25 ? 'กลาง' : 'ช้า'}
         </div>
         <input type="range" min={5} max={50} step={1} value={tickerSpeed}
           onChange={e=>setTickerSpeed(Number(e.target.value))}
@@ -379,6 +544,8 @@ export default function BingoNow() {
   const [textColor,   setTextColor]    = useState('#fbbf24');
   const [tickerSize,  setTickerSize]   = useState(22);
   const [tickerSpeed, setTickerSpeed]  = useState(18);
+  const [theme,       setTheme]        = useState('classic');
+  const [prizeSize,   setPrizeSize]    = useState(150);
   const [showSettings,setShowSettings] = useState(false);
 
   const socketRef = useRef(null);
@@ -524,6 +691,8 @@ export default function BingoNow() {
           textColor={textColor} setTextColor={setTextColor}
           tickerSize={tickerSize} setTickerSize={setTickerSize}
           tickerSpeed={tickerSpeed} setTickerSpeed={setTickerSpeed}
+          theme={theme} setTheme={setTheme}
+          prizeSize={prizeSize} setPrizeSize={setPrizeSize}
           isLight={isLight}
           onClose={()=>setShowSettings(false)}
         />
@@ -563,8 +732,8 @@ export default function BingoNow() {
                 </div>
                 {prizeImage && (
                   <img src={prizeImage} alt={prizeName}
-                    style={{maxWidth:'100%',maxHeight:'150px',objectFit:'contain',borderRadius:'10px',
-                      boxShadow:'0 4px 16px rgba(0,0,0,0.3)'}}/>
+                    style={{maxWidth:'100%',maxHeight:`${prizeSize}px`,objectFit:'contain',borderRadius:'10px',
+                      boxShadow:'0 4px 16px rgba(0,0,0,0.3)',transition:'max-height 0.3s'}}/>
                 )}
                 {prizeName && (
                   <div style={{textAlign:'center',fontWeight:900,fontSize:'clamp(0.8rem,1.7vw,1.1rem)',
@@ -643,7 +812,7 @@ export default function BingoNow() {
               <div style={{fontSize:'1.8rem',fontWeight:900,marginTop:'10px'}}>เกมจบแล้ว</div>
             </div>
           ) : (
-            <BigNumber number={lastDrawn} animKey={animKey} isLight={isLight} />
+            <BigNumber number={lastDrawn} animKey={animKey} isLight={isLight} theme={theme} />
           )}
 
           {/* Recent drawn pills (last 5 before current) */}
