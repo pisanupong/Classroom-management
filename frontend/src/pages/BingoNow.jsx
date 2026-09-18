@@ -204,7 +204,7 @@ const StarField = () => {
 };
 
 /* ─── Big Number with theme-aware slot-machine animation ─────── */
-const BigNumber = ({ number, animKey, isLight, theme = 'classic' }) => {
+const BigNumber = ({ number, animKey, isLight, theme = 'classic', numSize = 17 }) => {
   const [display, setDisplay] = useState(number);
   const [settled, setSettled] = useState(true);
   const timerRef              = useRef(null);
@@ -286,7 +286,7 @@ const BigNumber = ({ number, animKey, isLight, theme = 'classic' }) => {
         key={`num-${settled ? 'done' : `${animKey}-${display}`}`}
         className={settled ? `${cfg.settleClass} ${cfg.glowClass}` : ''}
         style={{
-          fontSize:'clamp(5rem,17vw,15rem)', fontWeight:900,
+          fontSize:`clamp(3rem,${numSize}vw,20rem)`, fontWeight:900,
           fontFamily: cfg.font,
           color: settled ? color : (isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)'),
           lineHeight:1, userSelect:'none', minWidth:'3ch', textAlign:'center',
@@ -408,6 +408,7 @@ const SettingsPanel = ({
   tickerSpeed, setTickerSpeed,
   theme, setTheme,
   prizeSize, setPrizeSize,
+  numSize, setNumSize,
   isLight, onClose,
 }) => {
   const panelColor = isLight ? '#1e293b' : '#e2e8f0';
@@ -464,10 +465,21 @@ const SettingsPanel = ({
           style={{width:'100%',height:'32px',borderRadius:'7px',border:'none',cursor:'pointer',marginTop:'6px'}}/>
       </div>
 
+      {/* Number size */}
+      <div>
+        <div style={labelStyle}>ขนาดตัวเลขสุ่ม — {numSize}vw</div>
+        <input type="range" min={8} max={28} step={1} value={numSize}
+          onChange={e=>setNumSize(Number(e.target.value))}
+          style={{width:'100%',cursor:'pointer'}}/>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.68rem',opacity:0.4,marginTop:'3px'}}>
+          <span>เล็ก</span><span>ใหญ่</span>
+        </div>
+      </div>
+
       {/* Prize image size */}
       <div>
         <div style={labelStyle}>ขนาดรูปของรางวัล — {prizeSize}px</div>
-        <input type="range" min={60} max={380} step={10} value={prizeSize}
+        <input type="range" min={60} max={700} step={10} value={prizeSize}
           onChange={e=>setPrizeSize(Number(e.target.value))}
           style={{width:'100%',cursor:'pointer'}}/>
         <div style={{display:'flex',justifyContent:'space-between',fontSize:'0.68rem',opacity:0.4,marginTop:'3px'}}>
@@ -546,6 +558,7 @@ export default function BingoNow() {
   const [tickerSpeed, setTickerSpeed]  = useState(18);
   const [theme,       setTheme]        = useState('classic');
   const [prizeSize,   setPrizeSize]    = useState(150);
+  const [numSize,     setNumSize]      = useState(17);
   const [showSettings,setShowSettings] = useState(false);
 
   const socketRef = useRef(null);
@@ -693,6 +706,7 @@ export default function BingoNow() {
           tickerSpeed={tickerSpeed} setTickerSpeed={setTickerSpeed}
           theme={theme} setTheme={setTheme}
           prizeSize={prizeSize} setPrizeSize={setPrizeSize}
+          numSize={numSize} setNumSize={setNumSize}
           isLight={isLight}
           onClose={()=>setShowSettings(false)}
         />
@@ -777,7 +791,7 @@ export default function BingoNow() {
         <div style={{
           flex:1,display:'flex',flexDirection:'column',alignItems:'center',
           justifyContent:'center',position:'relative',overflow:'hidden',
-          padding:'20px 10px',gap:'12px',
+          padding:'6px 4px',gap:'6px',
         }}>
 
           {/* Prize watermark */}
@@ -812,7 +826,7 @@ export default function BingoNow() {
               <div style={{fontSize:'1.8rem',fontWeight:900,marginTop:'10px'}}>เกมจบแล้ว</div>
             </div>
           ) : (
-            <BigNumber number={lastDrawn} animKey={animKey} isLight={isLight} theme={theme} />
+            <BigNumber number={lastDrawn} animKey={animKey} isLight={isLight} theme={theme} numSize={numSize} />
           )}
 
           {/* Recent drawn pills (last 5 before current) */}
