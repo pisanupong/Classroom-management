@@ -31,8 +31,6 @@ export default function BingoSell() {
   const [selling,       setSelling]       = useState(false);
   const [lastSold,      setLastSold]      = useState(null);
   const [printType,     setPrintType]     = useState('paper'); // 'mobile' | 'paper'
-  const [tplAlias,      setTplAlias]      = useState('TEMPLATE');
-  const [tplSeq,        setTplSeq]        = useState('999');
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -311,29 +309,6 @@ ${priceHtml}
     else doPrintPaper(args);
   };
 
-  /* ── Template print — พิมพ์ตัวอย่างโดยไม่ต้องขายจริง ─────────────── */
-  const doTemplatePrint = (type) => {
-    const ranges = [[1,15],[16,30],[31,45],[46,60],[61,75]];
-    const cols = ranges.map(([lo,hi]) => {
-      const pool = Array.from({ length: hi - lo + 1 }, (_, i) => i + lo);
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-      }
-      return pool.slice(0, 5);
-    });
-    cols[2][2] = 0; // FREE cell
-    const rows = Array.from({ length: 5 }, (_, r) =>
-      Array.from({ length: 5 }, (_, c) => cols[c][r])
-    );
-    const mockRoom  = { name: selectedRoom?.name  || 'BINGO ROOM', ticket_price: selectedRoom?.ticket_price || 0 };
-    const mockRound = { round_number: selectedRound?.round_number || 1, pattern: selectedRound?.pattern || 'line', prize: selectedRound?.prize || '' };
-    const mockQrUrl = `${window.location.origin}/bingo`;
-    const seqVal = parseInt(tplSeq, 10) || 999;
-    const args = { rows, seq: seqVal, room: mockRoom, round: mockRound, alias: tplAlias || 'TEMPLATE', qrUrl: mockQrUrl };
-    if (type === 'mobile') doPrintMobile(args);
-    else doPrintPaper(args);
-  };
 
   const handleSell = async () => {
     if (!studentId.trim()) { inputRef.current?.focus(); return; }
@@ -558,64 +533,6 @@ ${priceHtml}
                   <div style={{ fontSize: '16px', marginBottom: '2px' }}>📱</div>
                   <div style={{ fontSize: '12px', fontWeight: 700 }}>ตั๋วมือถือ</div>
                   <div style={{ fontSize: '10px', opacity: 0.7 }}>80mm · QR สแกนบนมือถือ</div>
-                </button>
-              </div>
-            </div>
-
-            {/* Template test print */}
-            <div style={{ marginBottom: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
-              <p style={{ margin: '0 0 8px', fontSize: '11px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                🧪 ทดสอบพิมพ์ตัวอย่าง
-              </p>
-              {/* Editable fields */}
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <div style={{ flex: 2 }}>
-                  <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginBottom: '3px' }}>ชื่อ / Alias</label>
-                  <input
-                    value={tplAlias}
-                    onChange={e => setTplAlias(e.target.value)}
-                    placeholder="TEMPLATE"
-                    style={{
-                      width: '100%', padding: '7px 10px', borderRadius: '8px',
-                      background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
-                      color: '#fff', fontSize: '13px', fontWeight: 700, textAlign: 'center',
-                    }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.3)', marginBottom: '3px' }}>ใบที่ #</label>
-                  <input
-                    value={tplSeq}
-                    onChange={e => setTplSeq(e.target.value)}
-                    type="number"
-                    min="1"
-                    style={{
-                      width: '100%', padding: '7px 10px', borderRadius: '8px',
-                      background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
-                      color: '#fff', fontSize: '13px', fontWeight: 700, textAlign: 'center',
-                    }}
-                  />
-                </div>
-              </div>
-              {/* Print buttons */}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => doTemplatePrint('paper')}
-                  style={{
-                    flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center',
-                    border: '1.5px dashed rgba(52,211,153,0.4)', background: 'rgba(52,211,153,0.06)',
-                    color: '#34d399', fontSize: '11px', fontWeight: 700,
-                  }}>
-                  📄 บัตรกระดาษ
-                </button>
-                <button
-                  onClick={() => doTemplatePrint('mobile')}
-                  style={{
-                    flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center',
-                    border: '1.5px dashed rgba(96,165,250,0.4)', background: 'rgba(96,165,250,0.06)',
-                    color: '#60a5fa', fontSize: '11px', fontWeight: 700,
-                  }}>
-                  📱 ตั๋วมือถือ
                 </button>
               </div>
             </div>
