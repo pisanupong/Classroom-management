@@ -391,34 +391,62 @@ export default function BingoNow() {
     return () => el.remove();
   }, []);
 
-  /* fetch initial room state */
+  /* helper: apply fetched room data to state */
+  const applyRoomData = (data, opts = {}) => {
+    const { triggerAnim = false } = opts;
+    setRoom(data);
+    const active = data.rounds?.find(rnd => rnd.status === 'active');
+    if (active) {
+      setActiveRound(active);
+      const d = active.drawn_numbers || [];
+      setDrawn(prev => {
+        if (d.length !== prev.length || triggerAnim) {
+          if (d.length > 0 && d.length > prev.length) {
+            setLastDrawn(d[d.length - 1]);
+            setAnimKey(k => k + 1);
+          }
+          return d;
+        }
+        return prev;
+      });
+      setPhase('active');
+    }
+  };
+
+  /* initial load */
   useEffect(() => {
     if (!roomId) return;
-    api.get(`/bingo/rooms/${roomId}`).then(r => {
-      setRoom(r.data);
-      const active = r.data.rounds?.find(rnd => rnd.status === 'active');
-      if (active) {
-        setActiveRound(active);
-        const d = active.drawn_numbers || [];
-        setDrawn(d);
-        if (d.length > 0) {
-          setLastDrawn(d[d.length - 1]);
-          setAnimKey(1);
-        }
-        setPhase('active');
-      }
-    }).catch(() => {});
+    api.get(`/bingo/rooms/${roomId}`)
+      .then(r => applyRoomData(r.data, { triggerAnim: true }))
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
-  /* socket */
+  /* polling fallback — syncs every 3 s so display never drifts */
+  useEffect(() => {
+    if (!roomId) return;
+    const timer = setInterval(() => {
+      api.get(`/bingo/rooms/${roomId}`)
+        .then(r => applyRoomData(r.data))
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]);
+
+  /* socket — for real-time instant updates (polling fills gaps) */
   useEffect(() => {
     if (!roomId) return;
     const socket = io(
       import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000',
-      { auth:{}, transports:['websocket'] }
+      { auth:{}, transports:['websocket'], reconnection:true, reconnectionDelay:1000, reconnectionAttempts:Infinity }
     );
     socketRef.current = socket;
-    socket.emit('bingo:join_room', { roomId, alias:'NOW_DISPLAY' });
+
+    // Join room on every (re)connect so server-side room membership is always current
+    socket.on('connect', () => {
+      socket.emit('bingo:join_room', { roomId, alias:'NOW_DISPLAY' });
+    });
 
     socket.on('bingo:number_drawn', ({ number, drawn: d }) => {
       setDrawn(d || []);
@@ -435,7 +463,7 @@ export default function BingoNow() {
     });
     socket.on('bingo:round_ended', () => setPhase('round_end'));
     socket.on('bingo:winner', w => setWinners(prev => [w, ...prev].slice(0, 5)));
-    socket.on('bingo:game_ended', () => { setPhase('game_end'); socket.disconnect(); });
+    socket.on('bingo:game_ended', () => setPhase('game_end'));
 
     return () => socket.disconnect();
   }, [roomId]);
