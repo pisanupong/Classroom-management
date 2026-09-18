@@ -214,7 +214,7 @@ ${priceHtml}
     .card { box-shadow:0 4px 24px rgba(0,0,0,0.35); }
     .btn-wrap { padding:6px 0 2px; text-align:center; }
   }
-  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   body { font-family:'Segoe UI',Tahoma,sans-serif; color:#1e293b; background:#fff; }
   /* card container = printable area 78mm × 138mm */
   .card { width:78mm; background:#fff; }
@@ -238,7 +238,7 @@ ${priceHtml}
     margin:1.5mm 0; letter-spacing:1px; }
   table { border-collapse:collapse; width:100%; table-layout:fixed; }
   th,td { border:1.5pt solid #333; text-align:center; padding:0; }
-  th { padding:2mm 0; font-size:12pt; font-weight:900; color:#fff; }
+  th { padding:2mm 0; font-size:12pt; font-weight:900; color:#fff; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   td { height:15mm; font-size:16pt; font-weight:800; color:#1e1b4b; }
   .free { background:#fef3c7; color:#d97706; font-size:8pt; font-weight:900; }
   .footer { display:flex; justify-content:space-between; align-items:center;
@@ -306,6 +306,29 @@ ${priceHtml}
     const args = { rows, seq, room: selectedRoom, round: selectedRound, alias, qrUrl };
     const t = type || printType;
     if (t === 'mobile') doPrintMobile(args);
+    else doPrintPaper(args);
+  };
+
+  /* ── Template print — พิมพ์ตัวอย่างโดยไม่ต้องขายจริง ─────────────── */
+  const doTemplatePrint = (type) => {
+    const ranges = [[1,15],[16,30],[31,45],[46,60],[61,75]];
+    const cols = ranges.map(([lo,hi]) => {
+      const pool = Array.from({ length: hi - lo + 1 }, (_, i) => i + lo);
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      return pool.slice(0, 5);
+    });
+    cols[2][2] = 0; // FREE cell
+    const rows = Array.from({ length: 5 }, (_, r) =>
+      Array.from({ length: 5 }, (_, c) => cols[c][r])
+    );
+    const mockRoom  = { name: selectedRoom?.name  || 'BINGO ROOM', ticket_price: selectedRoom?.ticket_price || 0 };
+    const mockRound = { round_number: selectedRound?.round_number || 1, pattern: selectedRound?.pattern || 'line', prize: selectedRound?.prize || '' };
+    const mockQrUrl = `${window.location.origin}/bingo`;
+    const args = { rows, seq: 999, room: mockRoom, round: mockRound, alias: 'TEMPLATE', qrUrl: mockQrUrl };
+    if (type === 'mobile') doPrintMobile(args);
     else doPrintPaper(args);
   };
 
@@ -532,6 +555,33 @@ ${priceHtml}
                   <div style={{ fontSize: '16px', marginBottom: '2px' }}>📱</div>
                   <div style={{ fontSize: '12px', fontWeight: 700 }}>ตั๋วมือถือ</div>
                   <div style={{ fontSize: '10px', opacity: 0.7 }}>80mm · QR สแกนบนมือถือ</div>
+                </button>
+              </div>
+            </div>
+
+            {/* Template test print */}
+            <div style={{ marginBottom: '14px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+              <p style={{ margin: '0 0 8px', fontSize: '11px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                🧪 ทดสอบพิมพ์ตัวอย่าง
+              </p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => doTemplatePrint('paper')}
+                  style={{
+                    flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center',
+                    border: '1.5px dashed rgba(52,211,153,0.4)', background: 'rgba(52,211,153,0.06)',
+                    color: '#34d399', fontSize: '11px', fontWeight: 700,
+                  }}>
+                  📄 บัตรกระดาษ
+                </button>
+                <button
+                  onClick={() => doTemplatePrint('mobile')}
+                  style={{
+                    flex: 1, padding: '8px 6px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center',
+                    border: '1.5px dashed rgba(96,165,250,0.4)', background: 'rgba(96,165,250,0.06)',
+                    color: '#60a5fa', fontSize: '11px', fontWeight: 700,
+                  }}>
+                  📱 ตั๋วมือถือ
                 </button>
               </div>
             </div>
