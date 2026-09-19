@@ -34,6 +34,8 @@ export default function BingoPlayer() {
   const [searchParams] = useSearchParams();
   // ?round=ID allows QR to be round-specific; passed as initial roundId on join
   const urlRoundId = searchParams.get('round') ? parseInt(searchParams.get('round')) : null;
+  // ?alias=XXX จาก QR บัตร → ใช้ alias นี้โดยตรง ไม่ดึงจาก localStorage
+  const urlAlias = searchParams.get('alias') || null;
   const socketRef = useRef(null);
 
   const [phase, setPhase] = useState('join');
@@ -91,8 +93,13 @@ export default function BingoPlayer() {
     return () => clearInterval(timer);
   }, [phase, id, studentId]);
 
-  // Auto-rejoin (pass urlRoundId so returning players re-join the right round)
+  // Auto-rejoin: ถ้า URL มี ?alias= (สแกน QR บัตร) → ใช้ alias นั้นก่อนเสมอ
   useEffect(() => {
+    if (urlAlias) {
+      setStudentId(urlAlias);
+      doJoin(urlAlias, urlRoundId);
+      return;
+    }
     const saved = localStorage.getItem(STORAGE_KEY(id));
     if (saved) { setStudentId(saved); doJoin(saved, urlRoundId); }
   }, [id]);
