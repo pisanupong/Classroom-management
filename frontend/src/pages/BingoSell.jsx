@@ -73,6 +73,11 @@ export default function BingoSell() {
   const soldCount = uniqueAliases.length;
   const seqNum = soldCount + 1;
 
+  const maxPlayers = selectedRoom?.max_players || 0;
+  const isSoldOut = maxPlayers > 0 && soldCount >= maxPlayers;
+  const isRoundFinished = selectedRound?.status === 'finished';
+  const canSell = !isRoundFinished && !isSoldOut;
+
   const generatePreview = async () => {
     if (!studentId.trim() || !selectedRoom || !selectedRound) return;
     setSelling(true);
@@ -553,6 +558,34 @@ ${priceHtml}
 
             {selectedRoom && selectedRound && (
               <>
+                {/* Stats banner: sold / limit / remaining */}
+                {maxPlayers > 0 && (
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px',
+                    marginBottom: '12px',
+                  }}>
+                    <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 900, color: '#34d399' }}>{soldCount}</div>
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>ขายแล้ว</div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.25)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 900, color: '#a78bfa' }}>{maxPlayers}</div>
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>จำกัด</div>
+                    </div>
+                    <div style={{ padding: '8px', borderRadius: '10px', background: isSoldOut ? 'rgba(239,68,68,0.1)' : 'rgba(251,191,36,0.1)', border: `1px solid ${isSoldOut ? 'rgba(239,68,68,0.3)' : 'rgba(251,191,36,0.25)'}`, textAlign: 'center' }}>
+                      <div style={{ fontSize: '20px', fontWeight: 900, color: isSoldOut ? '#f87171' : '#fbbf24' }}>{Math.max(0, maxPlayers - soldCount)}</div>
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>คงเหลือ</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cannot sell banner */}
+                {!canSell && (
+                  <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', marginBottom: '12px', fontSize: '13px', fontWeight: 700, color: '#f87171', textAlign: 'center' }}>
+                    {isRoundFinished ? '🔒 รอบนี้จบแล้ว — ไม่สามารถขายบัตรได้' : `🚫 ขายครบจำนวนแล้ว (${maxPlayers} คน)`}
+                  </div>
+                )}
+
                 {alreadySold && studentId.trim() && (
                   <div style={{ padding: '8px 12px', borderRadius: '10px', background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', marginBottom: '10px', fontSize: '12px', color: '#fbbf24' }}>
                     ⚠️ รหัสนี้มีใบแล้ว (ใบที่ #{existingSeq}) — จะพิมพ์ใบเดิมซ้ำ
@@ -567,41 +600,45 @@ ${priceHtml}
                     autoFocus
                     value={studentId}
                     onChange={e => setStudentId(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSell()}
+                    onKeyDown={e => { if (e.key === 'Enter' && canSell) handleSell(); }}
                     placeholder="พิมพ์รหัสนักเรียน แล้วกด Enter"
+                    disabled={!canSell}
                     style={{
                       flex: 1, padding: '12px 16px', borderRadius: '12px',
                       fontSize: '20px', fontWeight: 800, textAlign: 'center', letterSpacing: '2px',
-                      color: '#fff', background: 'rgba(255,255,255,0.08)',
-                      border: '2px solid rgba(255,255,255,0.15)', outline: 'none',
+                      color: canSell ? '#fff' : 'rgba(255,255,255,0.3)',
+                      background: canSell ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)',
+                      border: `2px solid ${canSell ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)'}`, outline: 'none',
                     }}
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     onClick={generatePreview}
-                    disabled={!studentId.trim() || selling}
+                    disabled={!studentId.trim() || selling || !canSell}
                     style={{
                       flex: 1, padding: '11px', borderRadius: '12px', fontSize: '13px', fontWeight: 700,
                       border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)',
-                      color: 'rgba(255,255,255,0.7)', cursor: !studentId.trim() || selling ? 'not-allowed' : 'pointer',
-                      opacity: !studentId.trim() || selling ? 0.4 : 1,
+                      color: 'rgba(255,255,255,0.7)', cursor: !studentId.trim() || selling || !canSell ? 'not-allowed' : 'pointer',
+                      opacity: !studentId.trim() || selling || !canSell ? 0.4 : 1,
                     }}>
                     👁️ ดูตัวอย่าง
                   </button>
                   <button
                     onClick={handleSell}
-                    disabled={!studentId.trim() || selling || !selectedRound}
+                    disabled={!studentId.trim() || selling || !selectedRound || !canSell}
                     style={{
                       flex: 2, padding: '11px', borderRadius: '12px', fontSize: '14px', fontWeight: 900,
-                      border: 'none', cursor: !studentId.trim() || selling ? 'not-allowed' : 'pointer',
-                      background: printType === 'mobile'
-                        ? 'linear-gradient(135deg,#3b82f6,#2563eb)'
-                        : 'linear-gradient(135deg,#f59e0b,#d97706)',
+                      border: 'none', cursor: !studentId.trim() || selling || !canSell ? 'not-allowed' : 'pointer',
+                      background: !canSell
+                        ? 'rgba(100,100,100,0.4)'
+                        : printType === 'mobile'
+                          ? 'linear-gradient(135deg,#3b82f6,#2563eb)'
+                          : 'linear-gradient(135deg,#f59e0b,#d97706)',
                       color: '#fff',
-                      opacity: !studentId.trim() || selling ? 0.4 : 1,
+                      opacity: !studentId.trim() || selling || !canSell ? 0.4 : 1,
                     }}>
-                    {selling ? '⏳ กำลังสร้าง...' : printType === 'mobile' ? '🖨️ ขาย & พิมพ์ตั๋ว 80mm' : '🖨️ ขาย & พิมพ์บัตร'}
+                    {selling ? '⏳ กำลังสร้าง...' : !canSell ? '🔒 ขายไม่ได้' : printType === 'mobile' ? '🖨️ ขาย & พิมพ์ตั๋ว 80mm' : '🖨️ ขาย & พิมพ์บัตร'}
                   </button>
                 </div>
               </>

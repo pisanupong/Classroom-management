@@ -595,6 +595,7 @@ model BingoRoom {
   total_rounds  Int       @default(3)
   drawn_numbers Int[]     @default([])
   ticket_price  Float     @default(0)          // ราคาบัตรต่อใบ (บาท)
+  max_players   Int       @default(0)          // 0 = ไม่จำกัด
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
 

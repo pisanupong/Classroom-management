@@ -38,7 +38,7 @@ function generateCard() {
 /* ── POST /api/bingo/rooms ── Create room ─────────────────────────────── */
 const createRoom = async (req, res) => {
   try {
-    const { name, total_rounds = 3, rounds_config = [], ticket_price = 0 } = req.body;
+    const { name, total_rounds = 3, rounds_config = [], ticket_price = 0, max_players = 0 } = req.body;
     if (!name) return res.status(400).json({ message: 'กรุณาใส่ชื่อห้อง' });
 
     const room = await prisma.bingoRoom.create({
@@ -47,6 +47,7 @@ const createRoom = async (req, res) => {
         created_by: req.user.id,
         total_rounds: parseInt(total_rounds),
         ticket_price: parseFloat(ticket_price) || 0,
+        max_players: parseInt(max_players) || 0,
         rounds: {
           create: Array.from({ length: parseInt(total_rounds) }, (_, i) => {
             const cfg = rounds_config[i] || {};
@@ -73,10 +74,11 @@ const createRoom = async (req, res) => {
 /* ── PATCH /api/bingo/rooms/:id ── Update room settings ──────────────── */
 const updateRoom = async (req, res) => {
   try {
-    const { ticket_price, name } = req.body;
+    const { ticket_price, name, max_players } = req.body;
     const data = {};
     if (ticket_price !== undefined) data.ticket_price = parseFloat(ticket_price) || 0;
     if (name !== undefined) data.name = name;
+    if (max_players !== undefined) data.max_players = parseInt(max_players) || 0;
 
     const room = await prisma.bingoRoom.update({
       where: { id: req.params.id },
@@ -149,9 +151,28 @@ const joinRoom = async (req, res) => {
 
     // Scope card lookup: if roundId provided, find round-specific card; else find legacy room-level card
     const roundIdNum = roundId ? parseInt(roundId) : null;
-    let card = await prisma.bingoCard.findFirst({
+
+    // ตรวจสถานะรอบ
+    if (roundIdNum) {
+      const round = await prisma.bingoRound.findUnique({ where: { id: roundIdNum } });
+      if (round?.status === 'finished') return res.status(400).json({ message: 'รอบนี้จบแล้ว ไม่สามารถขายบัตรได้' });
+    }
+
+    // ตรวจ max_players limit (เฉพาะผู้เล่นใหม่)
+    const existingCard = await prisma.bingoCard.findFirst({
       where: { room_id: req.params.id, alias, round_id: roundIdNum },
     });
+    if (!existingCard && room.max_players > 0) {
+      const uniqueCount = await prisma.bingoCard.groupBy({
+        by: ['alias'],
+        where: { room_id: req.params.id, round_id: roundIdNum },
+      });
+      if (uniqueCount.length >= room.max_players) {
+        return res.status(400).json({ message: `ขายครบจำนวนแล้ว (${room.max_players} คน)` });
+      }
+    }
+
+    let card = existingCard;
     if (!card) {
       card = await prisma.bingoCard.create({
         data: {

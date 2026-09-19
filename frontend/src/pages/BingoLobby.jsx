@@ -31,6 +31,7 @@ export default function BingoLobby() {
   const [form, setForm] = useState({
     name: '',
     ticket_price: '',
+    max_players: '',
     total_rounds: 3,
     rounds_config: [
       { pattern: 'line', prize: '', is_golden: false, prize_inventory_id: null },
@@ -68,6 +69,7 @@ export default function BingoLobby() {
       const r = await api.post('/bingo/rooms', {
         name: form.name,
         ticket_price: parseFloat(form.ticket_price) || 0,
+        max_players: parseInt(form.max_players) || 0,
         total_rounds: form.total_rounds,
         rounds_config: form.rounds_config,
       });
@@ -237,6 +239,13 @@ export default function BingoLobby() {
                   <input type="number" min={0} step={0.5} value={form.ticket_price}
                     onChange={e => setForm(f => ({ ...f, ticket_price: e.target.value }))}
                     placeholder="0 = ฟรี"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-purple-400 placeholder-white/20" />
+                </div>
+                <div>
+                  <label className="text-xs text-white/50 block mb-1">จำนวนผู้เล่นสูงสุด</label>
+                  <input type="number" min={0} value={form.max_players}
+                    onChange={e => setForm(f => ({ ...f, max_players: e.target.value }))}
+                    placeholder="0 = ไม่จำกัด"
                     className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-purple-400 placeholder-white/20" />
                 </div>
               </div>
