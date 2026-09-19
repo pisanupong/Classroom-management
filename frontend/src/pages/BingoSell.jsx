@@ -63,6 +63,11 @@ export default function BingoSell() {
     try {
       const r = await api.get(`/bingo/rooms/${selectedRoom.id}`);
       setRoomDetail(r.data);
+      // Sync selectedRound ให้ตรงกับข้อมูลล่าสุด
+      if (selectedRound) {
+        const freshRound = r.data.rounds?.find(rnd => rnd.id === selectedRound.id);
+        if (freshRound) setSelectedRound(freshRound);
+      }
     } catch {}
   };
 
@@ -75,7 +80,9 @@ export default function BingoSell() {
 
   const maxPlayers = selectedRoom?.max_players || 0;
   const isSoldOut = maxPlayers > 0 && soldCount >= maxPlayers;
-  const isRoundFinished = selectedRound?.status === 'finished';
+  // ดึง round ล่าสุดจาก roomDetail เสมอ (ป้องกัน selectedRound stale หลัง refresh)
+  const freshRound = roomDetail?.rounds?.find(r => r.id === selectedRound?.id) ?? selectedRound;
+  const isRoundFinished = freshRound?.status === 'finished';
   const canSell = !isRoundFinished && !isSoldOut;
 
   const generatePreview = async () => {
