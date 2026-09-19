@@ -108,10 +108,16 @@ export default function BingoSell() {
     ? uniqueAliases.indexOf(studentId.trim()) + 1
     : 0;
 
-  /* ── Build QR URL pointing to player join page ───────────────────── */
-  const buildQrUrl = (roomId, roundId, alias) => {
+  /* ── Build QR URLs ───────────────────────────────────────────────── */
+  // บัตรกระดาษ: สแกนเพื่อเล่นบนมือถือแทนบัตรกระดาษ (ไม่มี ?ticket)
+  const buildCardQrUrl = (roomId, roundId, alias) => {
     const base = window.location.origin;
     return `${base}/bingo/play/${roomId}?round=${roundId}&alias=${encodeURIComponent(alias)}`;
+  };
+  // ตั๋วมือถือ: ระบุ seq ด้วย → QR ต่างจากบัตรกระดาษ
+  const buildTicketQrUrl = (roomId, roundId, alias, seq) => {
+    const base = window.location.origin;
+    return `${base}/bingo/play/${roomId}?round=${roundId}&alias=${encodeURIComponent(alias)}&ticket=${seq}`;
   };
 
   /* ── Print: Type 1 — 80mm mobile receipt (no grid) ──────────────── */
@@ -314,9 +320,13 @@ ${priceHtml}
       Array.from({ length: 5 }, (_, c) => numbers[r * 5 + c])
     );
     const seq = alreadySold ? existingSeq : soldCount;
-    const qrUrl = buildQrUrl(selectedRoom.id, selectedRound.id, alias);
-    const args = { rows, seq, room: selectedRoom, round: selectedRound, alias, qrUrl };
     const t = type || printType;
+    // บัตรกระดาษ: QR → play page (สแกนเพื่อเล่นบนมือถือ)
+    // ตั๋วมือถือ: QR → play page + &ticket=seq (ต่างกัน)
+    const qrUrl = t === 'mobile'
+      ? buildTicketQrUrl(selectedRoom.id, selectedRound.id, alias, seq)
+      : buildCardQrUrl(selectedRoom.id, selectedRound.id, alias);
+    const args = { rows, seq, room: selectedRoom, round: selectedRound, alias, qrUrl };
     if (t === 'mobile') doPrintMobile(args);
     else doPrintPaper(args);
   };
